@@ -1,0 +1,4 @@
+/* Tailwind v4 foundation without preflight: the existing timeline owns its reset. */
+@import "tailwindcss/theme.css";
+@import "./tokens.css";
+@import "tailwindcss/utilities.css";

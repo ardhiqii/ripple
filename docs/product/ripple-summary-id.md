@@ -1,6 +1,6 @@
 # Ripple (nama sementara): ringkasan untuk tim
 
-Versi 12 Okt 2026 (diperbarui setelah review tim). Baca ini dulu (5 menit). Detail lengkap ada di `RIPPLE_PROPOSAL_v3.md`, rencana kerja per lane di `TECH_PLAN_ripple.md`.
+Versi 12 Okt 2026 (diperbarui setelah review tim). Baca ini dulu (5 menit). Detail lengkap ada di [product proposal](ripple-proposal.md), rencana kerja per lane di [technical plan](../engineering/technical-plan.md).
 
 Nama produk belum final. Kandidat: Shiftwise, Reckon, Kalau. Diputuskan bersama.
 

@@ -1,0 +1,49 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ripple-backend
+  annotations:
+    run.googleapis.com/minScale: "1"
+    autoscaling.knative.dev/maxScale: "3"
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      # Initial judging profile from backend-agentic-spec.md: 1 vCPU, 1 GiB,
+      # concurrency 8, and a 90 second request timeout above the 60 second
+      # agent hard limit. Keep the previous revision for rollback.
+      containerConcurrency: 8
+      timeoutSeconds: 90
+      serviceAccountName: ripple-backend@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - name: api
+          image: REGION-docker.pkg.dev/PROJECT_ID/ripple/backend:IMAGE_TAG
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: RIPPLE_ENVIRONMENT
+              value: production
+            - name: RIPPLE_CLOUD_RUN_CONCURRENCY
+              value: "8"
+            - name: RIPPLE_CLOUD_RUN_TIMEOUT_SECONDS
+              value: "90"
+            - name: RIPPLE_DB_POOL_SIZE
+              value: "5"
+            - name: RIPPLE_DB_MAX_OVERFLOW
+              value: "3"
+            - name: RIPPLE_DB_STATEMENT_TIMEOUT_SECONDS
+              value: "3"
+            - name: RIPPLE_SOLVER_MAX_WORKERS
+              value: "1"
+            - name: RIPPLE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ripple-database-url
+                  key: latest

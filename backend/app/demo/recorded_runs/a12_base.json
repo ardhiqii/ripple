@@ -1,0 +1,73 @@
+{
+  "schema_version": "1",
+  "prompt_version": "intake-v1",
+  "model_family": "gemini-recorded",
+  "scenario_id": "A-12-base",
+  "seed_version": "offshore-a12-v1",
+  "model_output": {
+    "nature": "disruption",
+    "cause": "vendor delay",
+    "job_ids": ["A-12"],
+    "objective": "Restore A-12 readiness",
+    "requested_start": 6,
+    "hard_constraints": [],
+    "soft_preferences": [],
+    "risk_tags": [],
+    "levers_ruled_out": [],
+    "missing_info": []
+  },
+  "tool_calls": [
+    {
+      "tool": "get_schedule",
+      "summary": "Loaded the A-12 schedule snapshot."
+    },
+    {
+      "tool": "check_readiness",
+      "summary": "A-12 can start no earlier than D+7 under the current evidence."
+    },
+    {
+      "tool": "optimize",
+      "summary": "Compared verified recovery options."
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "type": "run_started",
+      "timestamp": "2026-10-13T12:00:00Z",
+      "phase": "intake",
+      "public": {
+        "summary": "Recorded A-12 run started."
+      }
+    },
+    {
+      "seq": 2,
+      "type": "step",
+      "timestamp": "2026-10-13T12:00:01Z",
+      "phase": "investigation",
+      "public": {
+        "summary": "Readiness and policy checks completed."
+      }
+    },
+    {
+      "seq": 3,
+      "type": "plan",
+      "timestamp": "2026-10-13T12:00:02Z",
+      "phase": "complete",
+      "public": {
+        "summary": "Verified plan options are ready for review.",
+        "option_count": 3
+      }
+    },
+    {
+      "seq": 4,
+      "type": "done",
+      "timestamp": "2026-10-13T12:00:03Z",
+      "phase": "complete",
+      "public": {
+        "status": "completed",
+        "summary": "Recorded A-12 run completed."
+      }
+    }
+  ]
+}

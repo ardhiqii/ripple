@@ -1,6 +1,8 @@
 # Ripple (working name): technical plan, 4 lanes
 
-Version 12 Oct 2026 (v1.1, after team review: action registry, lever loop, risk and ETA rules, three-way ablation, smaller scope). Companion to `RIPPLE_PROPOSAL_v3.md` (reasoning and context) and `RINGKASAN_ripple.md` (quick overview in Indonesian). If they disagree on a technical point, this document wins.
+> Historical planning context. New implementation work follows `../implementation/README.md`, while current backend contracts live in `backend-agentic-spec.md`. Unversioned `/api/...` paths below are retained to preserve the original plan and must not be copied into new code.
+
+Version 12 Oct 2026 (v1.1, after team review: action registry, lever loop, risk and ETA rules, three-way ablation, smaller scope). Companion to the [product proposal](../product/ripple-proposal.md) and [team summary](../product/ripple-summary-id.md). If they disagree on a technical point, this document wins for its original frozen implementation contracts. Newer backend details live in [backend-agentic-spec.md](backend-agentic-spec.md).
 
 The product name is not final. In code, the name appears in one place only (`APP_NAME` in the backend config and `VITE_APP_NAME` in the frontend), so renaming is a one-line change.
 

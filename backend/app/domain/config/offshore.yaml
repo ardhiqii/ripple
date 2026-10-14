@@ -1,0 +1,52 @@
+{
+  "domain": "offshore_well_intervention",
+  "resource_types": [
+    {"type": "barge", "capacity": 1, "unit": "job"},
+    {"type": "supply_boat", "capacity": 100, "unit": "deck_units"}
+  ],
+  "readiness_templates": {
+    "esp_replacement": [
+      {"name": "function_test", "lead_days": 1},
+      {"name": "paperwork", "lead_days": 1},
+      {"name": "shorebase_staging", "lead_days": 1},
+      {"name": "load_and_sail", "lead_days": 1}
+    ]
+  },
+  "constraints": {
+    "weather": {
+      "metric": "wave_height_m",
+      "max": 2.0,
+      "applies_to": ["barge", "supply_boat"]
+    }
+  },
+  "priority_metric": "shortfall_bopd",
+  "stale_after_hours": 48,
+  "levers": {
+    "expedite_vendor_test": {"allowed": true, "approval": "planner", "cost_weight": 2},
+    "move_cargo": {"allowed": true, "approval": "planner", "cost_weight": 1},
+    "swap_jobs": {"allowed": true, "approval": "planner", "cost_weight": 3},
+    "move_locked_job": {"allowed": false},
+    "add_vessel": {"allowed": false}
+  },
+  "weight_profiles": {
+    "production_first": {
+      "delay_weight": 100,
+      "lever_cost_weight": 1,
+      "movement_weight": 2,
+      "risk_weight": 5
+    },
+    "stability_first": {
+      "delay_weight": 20,
+      "lever_cost_weight": 5,
+      "movement_weight": 100,
+      "risk_weight": 20
+    },
+    "lowest_risk": {
+      "delay_weight": 20,
+      "lever_cost_weight": 2,
+      "movement_weight": 5,
+      "risk_weight": 100
+    }
+  },
+  "default_weight_profile": "production_first"
+}

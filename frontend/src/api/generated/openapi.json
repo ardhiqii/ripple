@@ -1,0 +1,3964 @@
+{
+  "components": {
+    "schemas": {
+      "ApprovalResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_objects": {
+            "title": "Changed Objects"
+          },
+          "decision_id": {
+            "title": "Decision Id"
+          },
+          "notification_draft_ids": {
+            "title": "Notification Draft Ids"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "schedule_version_after": {
+            "title": "Schedule Version After"
+          },
+          "schedule_version_before": {
+            "title": "Schedule Version Before"
+          }
+        },
+        "required": [
+          "decision_id",
+          "plan_id",
+          "schedule_version_before",
+          "schedule_version_after",
+          "changed_objects",
+          "notification_draft_ids"
+        ],
+        "title": "ApprovalResponse",
+        "type": "object"
+      },
+      "ApprovePlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged_condition_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Acknowledged Condition Ids",
+            "type": "array"
+          },
+          "expected_schedule_version": {
+            "minimum": 0.0,
+            "title": "Expected Schedule Version",
+            "type": "integer"
+          },
+          "option_id": {
+            "format": "uuid",
+            "title": "Option Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "option_id",
+          "expected_schedule_version"
+        ],
+        "title": "ApprovePlanRequest",
+        "type": "object"
+      },
+      "BookingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cargo_id": {
+            "title": "Cargo Id"
+          },
+          "end_day": {
+            "title": "End Day"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "job_id": {
+            "title": "Job Id"
+          },
+          "load": {
+            "title": "Load"
+          },
+          "resource_id": {
+            "title": "Resource Id"
+          },
+          "row_version": {
+            "title": "Row Version"
+          },
+          "start_day": {
+            "title": "Start Day"
+          },
+          "status": {}
+        },
+        "required": [
+          "id",
+          "resource_id",
+          "start_day",
+          "end_day",
+          "load",
+          "status",
+          "job_id",
+          "cargo_id",
+          "row_version"
+        ],
+        "title": "BookingResponse",
+        "type": "object"
+      },
+      "BookingStatus": {
+        "enum": [
+          "planned",
+          "confirmed",
+          "cancelled"
+        ],
+        "title": "BookingStatus",
+        "type": "string"
+      },
+      "CapacityPointResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "booking_ids": {
+            "title": "Booking Ids"
+          },
+          "capacity": {
+            "title": "Capacity"
+          },
+          "day": {
+            "title": "Day"
+          },
+          "overflow": {
+            "title": "Overflow"
+          },
+          "resource_id": {
+            "title": "Resource Id"
+          },
+          "used": {
+            "title": "Used"
+          },
+          "utilization_percent": {
+            "title": "Utilization Percent"
+          }
+        },
+        "required": [
+          "resource_id",
+          "day",
+          "used",
+          "capacity",
+          "overflow",
+          "utilization_percent",
+          "booking_ids"
+        ],
+        "title": "CapacityPointResponse",
+        "type": "object"
+      },
+      "CapacityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "feasible": {
+            "title": "Feasible"
+          },
+          "max_overflow": {
+            "title": "Max Overflow"
+          },
+          "points": {
+            "title": "Points"
+          },
+          "resource_id": {
+            "title": "Resource Id"
+          },
+          "unit": {
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "resource_id",
+          "unit",
+          "feasible",
+          "max_overflow",
+          "points"
+        ],
+        "title": "CapacityResponse",
+        "type": "object"
+      },
+      "ChangeEventExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause"
+          },
+          "eta_updates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EtaUpdateExtraction"
+            },
+            "title": "Eta Updates",
+            "type": "array"
+          },
+          "hard_constraints": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/HardConstraintExtraction"
+            },
+            "title": "Hard Constraints",
+            "type": "array"
+          },
+          "job_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Job Ids",
+            "type": "array"
+          },
+          "levers_ruled_out": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuledOutLeverExtraction"
+            },
+            "title": "Levers Ruled Out",
+            "type": "array"
+          },
+          "missing_info": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Info",
+            "type": "array"
+          },
+          "nature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventNature"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objective"
+          },
+          "requested_start": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Start"
+          },
+          "risk_tags": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RiskTagExtraction"
+            },
+            "title": "Risk Tags",
+            "type": "array"
+          },
+          "soft_preferences": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Soft Preferences",
+            "type": "array"
+          },
+          "source_excerpt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_excerpt"
+        ],
+        "title": "ChangeEventExtraction",
+        "type": "object"
+      },
+      "ChangedObjectResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "title": "After"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "change_kind": {
+            "title": "Change Kind"
+          },
+          "entity_id": {
+            "title": "Entity Id"
+          },
+          "entity_type": {
+            "title": "Entity Type"
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "change_kind",
+          "before",
+          "after"
+        ],
+        "title": "ChangedObjectResponse",
+        "type": "object"
+      },
+      "Confidence": {
+        "enum": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "title": "Confidence",
+        "type": "string"
+      },
+      "CreateEventRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause"
+          },
+          "nature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventNature"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parent_event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Event Id"
+          },
+          "parent_plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Plan Id"
+          },
+          "raw_text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Raw Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "raw_text"
+        ],
+        "title": "CreateEventRequest",
+        "type": "object"
+      },
+      "DecisionAction": {
+        "enum": [
+          "approve",
+          "reject",
+          "reply"
+        ],
+        "title": "DecisionAction",
+        "type": "string"
+      },
+      "DecisionChangeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "title": "After"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "change_kind": {
+            "title": "Change Kind"
+          },
+          "decision_id": {
+            "title": "Decision Id"
+          },
+          "entity_id": {
+            "title": "Entity Id"
+          },
+          "entity_type": {
+            "title": "Entity Type"
+          },
+          "field": {
+            "title": "Field"
+          }
+        },
+        "required": [
+          "decision_id",
+          "entity_type",
+          "entity_id",
+          "field",
+          "change_kind",
+          "before",
+          "after"
+        ],
+        "title": "DecisionChangeResponse",
+        "type": "object"
+      },
+      "DecisionDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged_condition_ids": {
+            "title": "Acknowledged Condition Ids"
+          },
+          "action": {
+            "title": "Action"
+          },
+          "actor": {
+            "title": "Actor"
+          },
+          "category": {
+            "title": "Category"
+          },
+          "changes": {
+            "title": "Changes"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "reason": {
+            "title": "Reason"
+          },
+          "schedule_version_after": {
+            "title": "Schedule Version After"
+          },
+          "schedule_version_before": {
+            "title": "Schedule Version Before"
+          },
+          "selected_option_id": {
+            "title": "Selected Option Id"
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "selected_option_id",
+          "action",
+          "actor",
+          "reason",
+          "category",
+          "acknowledged_condition_ids",
+          "schedule_version_before",
+          "schedule_version_after",
+          "created_at",
+          "changes"
+        ],
+        "title": "DecisionDetailResponse",
+        "type": "object"
+      },
+      "DecisionListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "decisions": {
+            "title": "Decisions"
+          },
+          "next_cursor": {
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "decisions",
+          "next_cursor"
+        ],
+        "title": "DecisionListResponse",
+        "type": "object"
+      },
+      "DecisionMutationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action"
+          },
+          "decision_id": {
+            "title": "Decision Id"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "replan_requested": {
+            "title": "Replan Requested"
+          }
+        },
+        "required": [
+          "decision_id",
+          "plan_id",
+          "action"
+        ],
+        "title": "DecisionMutationResponse",
+        "type": "object"
+      },
+      "DecisionSummaryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledged_condition_ids": {
+            "title": "Acknowledged Condition Ids"
+          },
+          "action": {
+            "title": "Action"
+          },
+          "actor": {
+            "title": "Actor"
+          },
+          "category": {
+            "title": "Category"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "reason": {
+            "title": "Reason"
+          },
+          "schedule_version_after": {
+            "title": "Schedule Version After"
+          },
+          "schedule_version_before": {
+            "title": "Schedule Version Before"
+          },
+          "selected_option_id": {
+            "title": "Selected Option Id"
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "selected_option_id",
+          "action",
+          "actor",
+          "reason",
+          "category",
+          "acknowledged_condition_ids",
+          "schedule_version_before",
+          "schedule_version_after",
+          "created_at"
+        ],
+        "title": "DecisionSummaryResponse",
+        "type": "object"
+      },
+      "DemoResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "scenario_id": {
+            "default": "A-12-base",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Scenario Id",
+            "type": "string"
+          }
+        },
+        "title": "DemoResetRequest",
+        "type": "object"
+      },
+      "DemoResetResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "reset_at": {
+            "title": "Reset At"
+          },
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "schedule_version": {
+            "title": "Schedule Version"
+          },
+          "seed_checksum": {
+            "title": "Seed Checksum"
+          },
+          "seed_version": {
+            "title": "Seed Version"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "seed_version",
+          "seed_checksum",
+          "schedule_version",
+          "reset_at"
+        ],
+        "title": "DemoResetResponse",
+        "type": "object"
+      },
+      "DemoScenarioResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available"
+          },
+          "description": {
+            "title": "Description"
+          },
+          "mode": {
+            "title": "Mode"
+          },
+          "name": {
+            "title": "Name"
+          },
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "seed_checksum": {
+            "title": "Seed Checksum"
+          },
+          "seed_version": {
+            "title": "Seed Version"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "name",
+          "description",
+          "seed_version",
+          "seed_checksum",
+          "available",
+          "mode"
+        ],
+        "title": "DemoScenarioResponse",
+        "type": "object"
+      },
+      "DemoScenariosResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "title": "Mode"
+          },
+          "scenarios": {
+            "title": "Scenarios"
+          }
+        },
+        "required": [
+          "scenarios",
+          "mode"
+        ],
+        "title": "DemoScenariosResponse",
+        "type": "object"
+      },
+      "DiagnosticsResponse": {
+        "properties": {
+          "database": {
+            "additionalProperties": true,
+            "title": "Database",
+            "type": "object"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "solver": {
+            "additionalProperties": true,
+            "title": "Solver",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "vertex_ai": {
+            "additionalProperties": true,
+            "title": "Vertex Ai",
+            "type": "object"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "database",
+          "vertex_ai",
+          "solver",
+          "metrics"
+        ],
+        "title": "DiagnosticsResponse",
+        "type": "object"
+      },
+      "EtaUpdateExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "eta_earliest": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Earliest"
+          },
+          "eta_latest": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Latest"
+          },
+          "job_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Job Id",
+            "type": "string"
+          },
+          "source_excerpt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          },
+          "stage": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "stage",
+          "source_excerpt"
+        ],
+        "title": "EtaUpdateExtraction",
+        "type": "object"
+      },
+      "EventDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "event": {},
+          "extractions": {
+            "title": "Extractions"
+          },
+          "plans": {
+            "title": "Plans"
+          },
+          "runs": {
+            "title": "Runs"
+          }
+        },
+        "required": [
+          "event",
+          "extractions",
+          "runs",
+          "plans"
+        ],
+        "title": "EventDetailResponse",
+        "type": "object"
+      },
+      "EventListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "title": "Events"
+          },
+          "next_cursor": {
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "events",
+          "next_cursor"
+        ],
+        "title": "EventListResponse",
+        "type": "object"
+      },
+      "EventNature": {
+        "enum": [
+          "request",
+          "disruption",
+          "opportunity"
+        ],
+        "title": "EventNature",
+        "type": "string"
+      },
+      "EventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "title": "Cause"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "created_by": {
+            "title": "Created By"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "nature": {},
+          "origin_type": {
+            "title": "Origin Type"
+          },
+          "raw_text": {
+            "title": "Raw Text"
+          },
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "state": {},
+          "updated_at": {
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "scenario_id",
+          "nature",
+          "cause",
+          "raw_text",
+          "state",
+          "origin_type",
+          "extraction_version",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EventResponse",
+        "type": "object"
+      },
+      "EventState": {
+        "enum": [
+          "received",
+          "extracted",
+          "clarification_needed",
+          "planning",
+          "closed"
+        ],
+        "title": "EventState",
+        "type": "string"
+      },
+      "EventSummaryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "title": "Cause"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "nature": {},
+          "raw_text_preview": {
+            "title": "Raw Text Preview"
+          },
+          "state": {},
+          "updated_at": {
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "nature",
+          "cause",
+          "state",
+          "extraction_version",
+          "raw_text_preview",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EventSummaryResponse",
+        "type": "object"
+      },
+      "ExtractionCorrectionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_extraction_version": {
+            "minimum": 0.0,
+            "title": "Expected Extraction Version",
+            "type": "integer"
+          },
+          "extraction": {
+            "$ref": "#/components/schemas/ChangeEventExtraction"
+          }
+        },
+        "required": [
+          "expected_extraction_version",
+          "extraction"
+        ],
+        "title": "ExtractionCorrectionRequest",
+        "type": "object"
+      },
+      "ExtractionStartResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "title": "Event Id"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "state": {},
+          "status": {
+            "title": "Status"
+          }
+        },
+        "required": [
+          "event_id",
+          "state",
+          "extraction_version",
+          "status"
+        ],
+        "title": "ExtractionStartResponse",
+        "type": "object"
+      },
+      "ExtractionVersionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence_summary": {
+            "title": "Confidence Summary"
+          },
+          "corrected": {
+            "title": "Corrected"
+          },
+          "corrected_at": {
+            "title": "Corrected At"
+          },
+          "correction_actor": {
+            "title": "Correction Actor"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "extracted_json": {
+            "title": "Extracted Json"
+          },
+          "model_name": {
+            "title": "Model Name"
+          },
+          "prompt_version": {
+            "title": "Prompt Version"
+          },
+          "version": {
+            "title": "Version"
+          }
+        },
+        "required": [
+          "event_id",
+          "version",
+          "extracted_json",
+          "model_name",
+          "prompt_version",
+          "confidence_summary",
+          "corrected",
+          "correction_actor",
+          "corrected_at",
+          "created_at"
+        ],
+        "title": "ExtractionVersionResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HardConstraintExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_excerpt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "kind",
+          "source_excerpt"
+        ],
+        "title": "HardConstraintExtraction",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "JobResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_days": {
+            "title": "Duration Days"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "job_type": {
+            "title": "Job Type"
+          },
+          "lock_reason": {
+            "title": "Lock Reason"
+          },
+          "locked": {
+            "title": "Locked"
+          },
+          "row_version": {
+            "title": "Row Version"
+          },
+          "shortfall_bopd": {
+            "title": "Shortfall Bopd"
+          },
+          "site": {
+            "title": "Site"
+          },
+          "start_day": {
+            "title": "Start Day"
+          },
+          "status": {}
+        },
+        "required": [
+          "id",
+          "site",
+          "job_type",
+          "start_day",
+          "duration_days",
+          "shortfall_bopd",
+          "locked",
+          "lock_reason",
+          "status",
+          "row_version"
+        ],
+        "title": "JobResponse",
+        "type": "object"
+      },
+      "JobStatus": {
+        "enum": [
+          "planned",
+          "active",
+          "complete",
+          "cancelled"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "LeverResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed": {
+            "title": "Allowed"
+          },
+          "approval": {
+            "title": "Approval"
+          },
+          "cost_weight": {
+            "title": "Cost Weight"
+          },
+          "name": {
+            "title": "Name"
+          }
+        },
+        "required": [
+          "name",
+          "allowed",
+          "approval",
+          "cost_weight"
+        ],
+        "title": "LeverResponse",
+        "type": "object"
+      },
+      "LinkedPlanResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "base_schedule_version": {
+            "title": "Base Schedule Version"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "status": {
+            "title": "Status"
+          },
+          "verdict": {
+            "title": "Verdict"
+          },
+          "version": {
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "verdict",
+          "status",
+          "base_schedule_version",
+          "created_at"
+        ],
+        "title": "LinkedPlanResponse",
+        "type": "object"
+      },
+      "LinkedRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "title": "Attempt"
+          },
+          "completed_at": {
+            "title": "Completed At"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "started_at": {
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "attempt",
+          "extraction_version",
+          "started_at",
+          "completed_at"
+        ],
+        "title": "LinkedRunResponse",
+        "type": "object"
+      },
+      "PlanDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "base_schedule_version": {
+            "title": "Base Schedule Version"
+          },
+          "counterfactual": {
+            "title": "Counterfactual"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "evidence": {
+            "title": "Evidence"
+          },
+          "explanation": {
+            "title": "Explanation"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "lineage": {
+            "title": "Lineage"
+          },
+          "options": {
+            "title": "Options"
+          },
+          "recommended_option_id": {
+            "title": "Recommended Option Id"
+          },
+          "run_id": {
+            "title": "Run Id"
+          },
+          "status": {
+            "title": "Status"
+          },
+          "verdict": {
+            "title": "Verdict"
+          },
+          "version": {
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "run_id",
+          "version",
+          "verdict",
+          "recommended_option_id",
+          "base_schedule_version",
+          "explanation",
+          "counterfactual",
+          "status",
+          "created_at",
+          "options",
+          "evidence",
+          "lineage"
+        ],
+        "title": "PlanDetailResponse",
+        "type": "object"
+      },
+      "PlanEvidenceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "title": "Claim Id"
+          },
+          "claim_text": {
+            "title": "Claim Text"
+          },
+          "evidence_type": {
+            "title": "Evidence Type"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "tool_call_id": {
+            "title": "Tool Call Id"
+          }
+        },
+        "required": [
+          "plan_id",
+          "claim_id",
+          "claim_text",
+          "tool_call_id",
+          "evidence_type"
+        ],
+        "title": "PlanEvidenceResponse",
+        "type": "object"
+      },
+      "PlanLineageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "run_id": {
+            "title": "Run Id"
+          },
+          "status": {
+            "title": "Status"
+          },
+          "supersedes_plan_id": {
+            "title": "Supersedes Plan Id"
+          },
+          "verdict": {
+            "title": "Verdict"
+          },
+          "version": {
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "run_id",
+          "version",
+          "verdict",
+          "status",
+          "supersedes_plan_id",
+          "created_at"
+        ],
+        "title": "PlanLineageResponse",
+        "type": "object"
+      },
+      "PlanOptionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "title": "Changes"
+          },
+          "conditions": {
+            "title": "Conditions"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "is_recommended": {
+            "title": "Is Recommended"
+          },
+          "kpi": {
+            "title": "Kpi"
+          },
+          "label": {
+            "title": "Label"
+          },
+          "objective_value": {
+            "title": "Objective Value"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "rank": {
+            "title": "Rank"
+          },
+          "solve_milliseconds": {
+            "title": "Solve Milliseconds"
+          },
+          "solver_status": {
+            "title": "Solver Status"
+          },
+          "violations": {
+            "title": "Violations"
+          },
+          "weight_profile": {
+            "title": "Weight Profile"
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "label",
+          "weight_profile",
+          "solver_status",
+          "objective_value",
+          "solve_milliseconds",
+          "changes",
+          "conditions",
+          "kpi",
+          "violations",
+          "rank",
+          "is_recommended"
+        ],
+        "title": "PlanOptionResponse",
+        "type": "object"
+      },
+      "PolicyDataHealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "title": "As Of"
+          },
+          "sources": {
+            "title": "Sources"
+          },
+          "stale_after_hours": {
+            "title": "Stale After Hours"
+          }
+        },
+        "required": [
+          "as_of",
+          "stale_after_hours",
+          "sources"
+        ],
+        "title": "PolicyDataHealthResponse",
+        "type": "object"
+      },
+      "PolicyLeversResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "levers": {
+            "title": "Levers"
+          }
+        },
+        "required": [
+          "levers"
+        ],
+        "title": "PolicyLeversResponse",
+        "type": "object"
+      },
+      "PolicyProfilesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "default_profile": {
+            "title": "Default Profile"
+          },
+          "profiles": {
+            "title": "Profiles"
+          }
+        },
+        "required": [
+          "default_profile",
+          "profiles"
+        ],
+        "title": "PolicyProfilesResponse",
+        "type": "object"
+      },
+      "PublicRunEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "phase": {
+            "title": "Phase"
+          },
+          "public": {
+            "title": "Public"
+          },
+          "run_id": {
+            "title": "Run Id"
+          },
+          "seq": {
+            "title": "Seq"
+          },
+          "timestamp": {
+            "title": "Timestamp"
+          },
+          "type": {
+            "title": "Type"
+          }
+        },
+        "required": [
+          "run_id",
+          "seq",
+          "type",
+          "timestamp",
+          "phase",
+          "public"
+        ],
+        "title": "PublicRunEventResponse",
+        "type": "object"
+      },
+      "ReadinessDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "history": {
+            "title": "History"
+          },
+          "item": {},
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "schedule_version": {
+            "title": "Schedule Version"
+          },
+          "source": {},
+          "suggestion": {}
+        },
+        "required": [
+          "scenario_id",
+          "schedule_version",
+          "item",
+          "source",
+          "suggestion",
+          "history"
+        ],
+        "title": "ReadinessDetailResponse",
+        "type": "object"
+      },
+      "ReadinessItemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {},
+          "earliest_feasible_start": {
+            "title": "Earliest Feasible Start"
+          },
+          "effective_eta": {
+            "title": "Effective Eta"
+          },
+          "effective_slack": {
+            "title": "Effective Slack"
+          },
+          "eta_earliest": {
+            "title": "Eta Earliest"
+          },
+          "eta_latest": {
+            "title": "Eta Latest"
+          },
+          "feasible_for_target": {
+            "title": "Feasible For Target"
+          },
+          "freshness_hours": {
+            "title": "Freshness Hours"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "job_id": {
+            "title": "Job Id"
+          },
+          "last_updated": {
+            "title": "Last Updated"
+          },
+          "lead_time_days": {
+            "title": "Lead Time Days"
+          },
+          "not_before_day": {
+            "title": "Not Before Day"
+          },
+          "notes": {
+            "title": "Notes"
+          },
+          "plan_on_latest": {
+            "title": "Plan On Latest"
+          },
+          "planned_day": {
+            "title": "Planned Day"
+          },
+          "required_by": {
+            "title": "Required By"
+          },
+          "risk_buffer_days": {
+            "title": "Risk Buffer Days"
+          },
+          "row_version": {
+            "title": "Row Version"
+          },
+          "slack": {
+            "title": "Slack"
+          },
+          "source_reference": {
+            "title": "Source Reference"
+          },
+          "source_type": {
+            "title": "Source Type"
+          },
+          "stage": {
+            "title": "Stage"
+          },
+          "stale": {
+            "title": "Stale"
+          },
+          "status": {},
+          "step_order": {
+            "title": "Step Order"
+          },
+          "vendor_expedite_required": {
+            "title": "Vendor Expedite Required"
+          }
+        },
+        "required": [
+          "id",
+          "job_id",
+          "stage",
+          "step_order",
+          "lead_time_days",
+          "planned_day",
+          "eta_earliest",
+          "eta_latest",
+          "confidence",
+          "status",
+          "source_type",
+          "source_reference",
+          "last_updated",
+          "not_before_day",
+          "risk_buffer_days",
+          "row_version",
+          "required_by",
+          "effective_eta",
+          "slack",
+          "effective_slack",
+          "stale",
+          "freshness_hours",
+          "feasible_for_target",
+          "earliest_feasible_start",
+          "plan_on_latest",
+          "vendor_expedite_required",
+          "notes"
+        ],
+        "title": "ReadinessItemResponse",
+        "type": "object"
+      },
+      "ReadinessListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "title": "Items"
+          },
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "schedule_version": {
+            "title": "Schedule Version"
+          },
+          "summary": {}
+        },
+        "required": [
+          "scenario_id",
+          "schedule_version",
+          "items",
+          "summary"
+        ],
+        "title": "ReadinessListResponse",
+        "type": "object"
+      },
+      "ReadinessPatchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Confidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eta_earliest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Earliest"
+          },
+          "eta_latest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Latest"
+          },
+          "expected_row_version": {
+            "exclusiveMinimum": 0.0,
+            "title": "Expected Row Version",
+            "type": "integer"
+          },
+          "planned_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Day"
+          },
+          "risk_buffer_days": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Buffer Days"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadinessStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expected_row_version"
+        ],
+        "title": "ReadinessPatchRequest",
+        "type": "object"
+      },
+      "ReadinessSourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {},
+          "freshness_hours": {
+            "title": "Freshness Hours"
+          },
+          "last_updated": {
+            "title": "Last Updated"
+          },
+          "source_reference": {
+            "title": "Source Reference"
+          },
+          "source_type": {
+            "title": "Source Type"
+          },
+          "stale": {
+            "title": "Stale"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_reference",
+          "last_updated",
+          "confidence",
+          "stale",
+          "freshness_hours"
+        ],
+        "title": "ReadinessSourceResponse",
+        "type": "object"
+      },
+      "ReadinessStatus": {
+        "enum": [
+          "pending",
+          "ready",
+          "blocked",
+          "waived"
+        ],
+        "title": "ReadinessStatus",
+        "type": "string"
+      },
+      "ReadinessSuggestionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "base_row_version": {
+            "title": "Base Row Version"
+          },
+          "confidence": {
+            "title": "Confidence"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "proposed_patch": {
+            "title": "Proposed Patch"
+          },
+          "readiness_item_id": {
+            "title": "Readiness Item Id"
+          },
+          "review_actor": {
+            "title": "Review Actor"
+          },
+          "review_note": {
+            "title": "Review Note"
+          },
+          "reviewed_at": {
+            "title": "Reviewed At"
+          },
+          "source_excerpt": {
+            "title": "Source Excerpt"
+          },
+          "state": {
+            "title": "State"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "readiness_item_id",
+          "proposed_patch",
+          "source_excerpt",
+          "confidence",
+          "base_row_version",
+          "state",
+          "review_actor",
+          "review_note",
+          "created_at",
+          "reviewed_at"
+        ],
+        "title": "ReadinessSuggestionResponse",
+        "type": "object"
+      },
+      "ReadinessSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "at_risk": {
+            "title": "At Risk"
+          },
+          "blocked": {
+            "title": "Blocked"
+          },
+          "low_confidence": {
+            "title": "Low Confidence"
+          },
+          "stale": {
+            "title": "Stale"
+          },
+          "total": {
+            "title": "Total"
+          }
+        },
+        "required": [
+          "total",
+          "at_risk",
+          "stale",
+          "low_confidence",
+          "blocked"
+        ],
+        "title": "ReadinessSummary",
+        "type": "object"
+      },
+      "ReadinessWriteResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "item": {},
+          "schedule_version": {
+            "title": "Schedule Version"
+          }
+        },
+        "required": [
+          "item",
+          "schedule_version"
+        ],
+        "title": "ReadinessWriteResponse",
+        "type": "object"
+      },
+      "RejectPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "reason": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "replan": {
+            "default": false,
+            "title": "Replan",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "RejectPlanRequest",
+        "type": "object"
+      },
+      "ReplyPlanRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Context",
+            "type": "string"
+          }
+        },
+        "required": [
+          "context"
+        ],
+        "title": "ReplyPlanRequest",
+        "type": "object"
+      },
+      "ResourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active"
+          },
+          "capacity": {
+            "title": "Capacity"
+          },
+          "id": {
+            "title": "Id"
+          },
+          "metadata": {
+            "title": "Metadata"
+          },
+          "name": {
+            "title": "Name"
+          },
+          "type": {},
+          "unit": {
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "name",
+          "capacity",
+          "unit",
+          "active",
+          "metadata"
+        ],
+        "title": "ResourceResponse",
+        "type": "object"
+      },
+      "ResourceType": {
+        "enum": [
+          "barge",
+          "supply_boat",
+          "crane",
+          "test_bay",
+          "lift_crew"
+        ],
+        "title": "ResourceType",
+        "type": "string"
+      },
+      "RiskTagExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "object_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Id"
+          },
+          "source_excerpt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          },
+          "tag": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "source_excerpt"
+        ],
+        "title": "RiskTagExtraction",
+        "type": "object"
+      },
+      "RuledOutLeverExtraction": {
+        "additionalProperties": false,
+        "properties": {
+          "lever": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Lever",
+            "type": "string"
+          },
+          "source_excerpt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Excerpt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lever",
+          "source_excerpt"
+        ],
+        "title": "RuledOutLeverExtraction",
+        "type": "object"
+      },
+      "RunCreateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "title": "Attempt"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "run_id": {
+            "title": "Run Id"
+          },
+          "state": {
+            "title": "State"
+          },
+          "stream_url": {
+            "title": "Stream Url"
+          }
+        },
+        "required": [
+          "run_id",
+          "event_id",
+          "extraction_version",
+          "state",
+          "attempt",
+          "stream_url"
+        ],
+        "title": "RunCreateResponse",
+        "type": "object"
+      },
+      "RunDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "title": "Attempt"
+          },
+          "completed_at": {
+            "title": "Completed At"
+          },
+          "error_code": {
+            "title": "Error Code"
+          },
+          "event_id": {
+            "title": "Event Id"
+          },
+          "events": {
+            "title": "Events"
+          },
+          "extraction_version": {
+            "title": "Extraction Version"
+          },
+          "plan_id": {
+            "title": "Plan Id"
+          },
+          "run_id": {
+            "title": "Run Id"
+          },
+          "started_at": {
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State"
+          },
+          "timeout_at": {
+            "title": "Timeout At"
+          },
+          "tool_call_budget": {
+            "title": "Tool Call Budget"
+          },
+          "tool_call_usage": {
+            "title": "Tool Call Usage"
+          }
+        },
+        "required": [
+          "run_id",
+          "event_id",
+          "extraction_version",
+          "state",
+          "attempt",
+          "tool_call_budget",
+          "tool_call_usage",
+          "started_at",
+          "completed_at",
+          "timeout_at",
+          "error_code",
+          "plan_id",
+          "events"
+        ],
+        "title": "RunDetailResponse",
+        "type": "object"
+      },
+      "ScheduleChangesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "title": "Changes"
+          },
+          "decision_id": {
+            "title": "Decision Id"
+          },
+          "schedule_version_after": {
+            "title": "Schedule Version After"
+          },
+          "schedule_version_before": {
+            "title": "Schedule Version Before"
+          }
+        },
+        "required": [
+          "decision_id",
+          "schedule_version_before",
+          "schedule_version_after",
+          "changes"
+        ],
+        "title": "ScheduleChangesResponse",
+        "type": "object"
+      },
+      "ScheduleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bookings": {
+            "title": "Bookings"
+          },
+          "capacity": {
+            "title": "Capacity"
+          },
+          "from_day": {
+            "title": "From Day"
+          },
+          "jobs": {
+            "title": "Jobs"
+          },
+          "resources": {
+            "title": "Resources"
+          },
+          "scenario_id": {
+            "title": "Scenario Id"
+          },
+          "to_day": {
+            "title": "To Day"
+          },
+          "version": {
+            "title": "Version"
+          },
+          "weather": {
+            "title": "Weather"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "from_day",
+          "to_day",
+          "version",
+          "jobs",
+          "resources",
+          "bookings",
+          "weather",
+          "capacity"
+        ],
+        "title": "ScheduleResponse",
+        "type": "object"
+      },
+      "SourceHealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "item_count": {
+            "title": "Item Count"
+          },
+          "latest_updated_at": {
+            "title": "Latest Updated At"
+          },
+          "source_type": {
+            "title": "Source Type"
+          },
+          "stale_count": {
+            "title": "Stale Count"
+          },
+          "status": {
+            "title": "Status"
+          }
+        },
+        "required": [
+          "source_type",
+          "item_count",
+          "latest_updated_at",
+          "stale_count",
+          "status"
+        ],
+        "title": "SourceHealthResponse",
+        "type": "object"
+      },
+      "SuggestionReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "SuggestionReviewRequest",
+        "type": "object"
+      },
+      "SuggestionReviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "schedule_version": {
+            "title": "Schedule Version"
+          },
+          "suggestion": {}
+        },
+        "required": [
+          "suggestion",
+          "schedule_version"
+        ],
+        "title": "SuggestionReviewResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WeatherResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "title": "Day"
+          },
+          "go": {
+            "title": "Go"
+          },
+          "location": {
+            "title": "Location"
+          },
+          "metric": {
+            "title": "Metric"
+          },
+          "source": {
+            "title": "Source"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "location",
+          "day",
+          "metric",
+          "value",
+          "go",
+          "source"
+        ],
+        "title": "WeatherResponse",
+        "type": "object"
+      },
+      "WeightProfileResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "delay_weight": {
+            "title": "Delay Weight"
+          },
+          "lever_cost_weight": {
+            "title": "Lever Cost Weight"
+          },
+          "movement_weight": {
+            "title": "Movement Weight"
+          },
+          "name": {
+            "title": "Name"
+          },
+          "risk_weight": {
+            "title": "Risk Weight"
+          }
+        },
+        "required": [
+          "name",
+          "delay_weight",
+          "lever_cost_weight",
+          "movement_weight",
+          "risk_weight"
+        ],
+        "title": "WeightProfileResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Ripple API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/decisions": {
+      "get": {
+        "operationId": "list_decisions_api_v1_decisions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DecisionAction"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plan_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Decisions",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/decisions/{decision_id}": {
+      "get": {
+        "operationId": "get_decision_api_v1_decisions__decision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Decision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Decision",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/demo/reset": {
+      "post": {
+        "operationId": "reset_demo_api_v1_demo_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Demo",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/v1/demo/scenarios": {
+      "get": {
+        "operationId": "list_demo_scenarios_api_v1_demo_scenarios_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoScenariosResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Demo Scenarios",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/v1/demo/scenarios/{scenario_id}/runs/{run_id}/stream": {
+      "get": {
+        "operationId": "stream_recorded_demo_api_v1_demo_scenarios__scenario_id__runs__run_id__stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Recorded Demo",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "list_events_api_v1_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "nature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EventNature"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nature"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EventState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "operationId": "create_event_api_v1_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}": {
+      "delete": {
+        "operationId": "delete_event_api_v1_events__event_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event",
+        "tags": [
+          "events"
+        ]
+      },
+      "get": {
+        "operationId": "get_event_api_v1_events__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/extract": {
+      "post": {
+        "operationId": "start_event_extraction_api_v1_events__event_id__extract_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Event Extraction",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/extraction": {
+      "patch": {
+        "operationId": "correct_event_extraction_api_v1_events__event_id__extraction_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionCorrectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correct Event Extraction",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/runs": {
+      "post": {
+        "operationId": "create_run_api_v1_events__event_id__runs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCreateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/health/diagnostics": {
+      "get": {
+        "operationId": "diagnostics_api_v1_health_diagnostics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Diagnostics",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}": {
+      "get": {
+        "operationId": "get_plan_api_v1_plans__plan_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}/approve": {
+      "post": {
+        "operationId": "approve_plan_api_v1_plans__plan_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}/reject": {
+      "post": {
+        "operationId": "reject_plan_api_v1_plans__plan_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}/reply": {
+      "post": {
+        "operationId": "reply_to_plan_api_v1_plans__plan_id__reply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionMutationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reply To Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/policy/data-health": {
+      "get": {
+        "operationId": "get_data_health_api_v1_policy_data_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDataHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Data Health",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/policy/levers": {
+      "get": {
+        "operationId": "get_levers_api_v1_policy_levers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyLeversResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Levers",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/policy/profiles": {
+      "get": {
+        "operationId": "get_profiles_api_v1_policy_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyProfilesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Profiles",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/api/v1/readiness": {
+      "get": {
+        "operationId": "list_readiness_api_v1_readiness_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "job_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReadinessStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Confidence"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Confidence"
+            }
+          },
+          {
+            "in": "query",
+            "name": "risk",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Risk"
+            }
+          },
+          {
+            "in": "query",
+            "name": "item",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Item"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Readiness",
+        "tags": [
+          "readiness"
+        ]
+      }
+    },
+    "/api/v1/readiness/suggestions/{suggestion_id}/accept": {
+      "post": {
+        "operationId": "accept_readiness_suggestion_api_v1_readiness_suggestions__suggestion_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessWriteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Readiness Suggestion",
+        "tags": [
+          "readiness"
+        ]
+      }
+    },
+    "/api/v1/readiness/suggestions/{suggestion_id}/reject": {
+      "post": {
+        "operationId": "reject_readiness_suggestion_api_v1_readiness_suggestions__suggestion_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suggestion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Suggestion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestionReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionReviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Readiness Suggestion",
+        "tags": [
+          "readiness"
+        ]
+      }
+    },
+    "/api/v1/readiness/{item_id}": {
+      "get": {
+        "operationId": "get_readiness_detail_api_v1_readiness__item_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Readiness Detail",
+        "tags": [
+          "readiness"
+        ]
+      },
+      "patch": {
+        "operationId": "update_readiness_api_v1_readiness__item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadinessPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessWriteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Readiness",
+        "tags": [
+          "readiness"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/stream": {
+      "get": {
+        "operationId": "stream_run_api_v1_runs__run_id__stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/schedule": {
+      "get": {
+        "operationId": "get_schedule_api_v1_schedule_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "groups",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Groups"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Schedule",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/api/v1/schedule/changes": {
+      "get": {
+        "operationId": "get_schedule_changes_api_v1_schedule_changes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Decision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleChangesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Schedule Changes",
+        "tags": [
+          "schedule"
+        ]
+      }
+    }
+  }
+}

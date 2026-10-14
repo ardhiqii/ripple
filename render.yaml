@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ripple-api-preview
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: /app/scripts/start_preview.sh
+    healthCheckPath: /api/v1/health/ready
+    envVars:
+      - key: RIPPLE_ENVIRONMENT
+        value: staging
+      - key: RIPPLE_DATABASE_URL
+        sync: false
+      - key: RIPPLE_CORS_ORIGINS
+        sync: false
+      - key: RIPPLE_CORS_ORIGIN_REGEX
+        sync: false
+      - key: RIPPLE_DB_POOL_SIZE
+        value: 2
+      - key: RIPPLE_DB_MAX_OVERFLOW
+        value: 1
+      - key: RIPPLE_DEMO_SCENARIO_ID
+        value: A-12-base
+      - key: RIPPLE_MOCK_MODEL_MODE
+        value: full

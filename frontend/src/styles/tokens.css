@@ -1,0 +1,43 @@
+:root {
+  --ds-color-on-primary: #ffffff;
+  --ds-color-on-danger: #ffffff;
+  --ds-color-focus: #2563eb;
+  --ds-color-overlay: rgb(21 40 58 / .42);
+}
+
+@theme inline {
+  --color-canvas: var(--ds-color-canvas);
+  --color-surface: var(--ds-color-surface);
+  --color-surface-subtle: var(--ds-color-surface-subtle);
+  --color-surface-raised: var(--ds-color-surface-raised);
+  --color-ink: var(--ds-color-text);
+  --color-muted: var(--ds-color-text-muted);
+  --color-subtle: var(--ds-color-text-subtle);
+  --color-border: var(--ds-color-border);
+  --color-border-strong: var(--ds-color-border-strong);
+  --color-primary: var(--ds-color-primary);
+  --color-primary-hover: var(--ds-color-primary-hover);
+  --color-primary-subtle: var(--ds-color-primary-subtle);
+  --color-on-primary: var(--ds-color-on-primary);
+  --color-success: var(--ds-color-success);
+  --color-success-subtle: var(--ds-color-success-subtle);
+  --color-danger: var(--ds-color-danger);
+  --color-danger-subtle: var(--ds-color-danger-subtle);
+  --color-on-danger: var(--ds-color-on-danger);
+  --color-info: var(--ds-color-info);
+  --color-info-subtle: var(--ds-color-info-subtle);
+  --color-neutral: var(--ds-color-neutral);
+  --color-neutral-subtle: var(--ds-color-neutral-subtle);
+  --color-warning: var(--ds-color-warning);
+  --color-warning-subtle: var(--ds-color-warning-subtle);
+  --color-focus: var(--ds-color-focus);
+  --color-overlay: var(--ds-color-overlay);
+  --font-display: var(--ds-font-display);
+  --font-body: var(--ds-font-body);
+  --font-mono: var(--ds-font-mono);
+  --radius-xs: var(--ds-radius-xs);
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+  --shadow-raised: var(--ds-shadow-raised);
+}
