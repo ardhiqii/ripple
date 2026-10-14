@@ -16,7 +16,7 @@ RUN uv sync --frozen --no-dev
 COPY app ./app
 COPY migrations ./migrations
 COPY seed ./seed
-COPY scripts/start_preview.sh ./scripts/start_preview.sh
+COPY scripts ./scripts
 COPY alembic.ini ./
 RUN chmod +x ./scripts/start_preview.sh
 

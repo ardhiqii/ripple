@@ -41,7 +41,7 @@ Open `http://localhost:5173`. Browser requests stay on the Vite origin and are p
 3. Replace its password placeholder, then store the complete value only as Render's `RIPPLE_DATABASE_URL` secret. The backend accepts `postgres://`, `postgresql://`, and `sslmode=require` and normalizes them for `asyncpg`.
 4. Do not add Supabase browser keys to Vercel. The frontend does not access Supabase directly.
 
-The Render startup command runs `alembic upgrade head` before starting Uvicorn. This is intentionally limited to the single-instance preview profile. Production migration orchestration must be separated before horizontal scaling.
+The Render startup command runs `alembic upgrade head` and installs the idempotent synthetic demo seed before starting Uvicorn. This is intentionally limited to the single-instance preview profile. Production migration and seed orchestration must be separated before horizontal scaling.
 
 ## 3. Create the API preview in Render
 
