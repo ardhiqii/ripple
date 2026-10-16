@@ -7,12 +7,14 @@ export interface ActiveRun {
   eventId: string
   status: ActiveRunStatus
   startedAt: string
+  lastSeq?: number
+  scenarioId?: string
 }
 
 interface RunRegistryValue {
   activeRuns: ActiveRun[]
   registerRun: (run: ActiveRun) => void
-  updateRun: (runId: string, patch: Partial<Pick<ActiveRun, 'status' | 'eventId'>>) => void
+  updateRun: (runId: string, patch: Partial<Pick<ActiveRun, 'status' | 'eventId' | 'lastSeq'>>) => void
   removeRun: (runId: string) => void
   clearRuns: () => void
 }
@@ -44,6 +46,8 @@ function isActiveRun(value: unknown): value is ActiveRun {
   return typeof candidate.runId === 'string'
     && typeof candidate.eventId === 'string'
     && typeof candidate.startedAt === 'string'
+    && (candidate.lastSeq === undefined || (typeof candidate.lastSeq === 'number' && Number.isInteger(candidate.lastSeq) && candidate.lastSeq >= 0))
+    && (candidate.scenarioId === undefined || typeof candidate.scenarioId === 'string')
     && (candidate.status === 'queued' || candidate.status === 'streaming' || candidate.status === 'completed' || candidate.status === 'failed')
 }
 
@@ -58,7 +62,7 @@ export function RunRegistryProvider({ children }: { children: ReactNode }) {
     setActiveRuns((current) => [...current.filter((item) => item.runId !== run.runId), run])
   }, [])
 
-  const updateRun = useCallback((runId: string, patch: Partial<Pick<ActiveRun, 'status' | 'eventId'>>) => {
+  const updateRun = useCallback((runId: string, patch: Partial<Pick<ActiveRun, 'status' | 'eventId' | 'lastSeq'>>) => {
     setActiveRuns((current) => current.map((run) => run.runId === runId ? { ...run, ...patch } : run))
   }, [])
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from app.domain.enums import (
@@ -12,15 +12,15 @@ from app.domain.enums import (
     ReadinessStatus,
     ResourceType,
 )
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ApiModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    @field_serializer("*", when_used="json", check_fields=False)
-    def _serialize_decimal(self, value: Any) -> Any:
-        return float(value) if isinstance(value, Decimal) else value
+    # Keep Decimal JSON output numeric without attaching a wildcard serializer
+    # to every field. FastAPI uses the response model's serializers while
+    # building OpenAPI; the wildcard serializer made otherwise typed fields
+    # appear as untyped properties in the generated contract.
+    model_config = ConfigDict(extra="forbid", json_encoders={Decimal: float})
 
 
 class ErrorPayload(ApiModel):
@@ -126,6 +126,11 @@ class EventSummaryResponse(ApiModel):
     raw_text_preview: str
     created_at: datetime
     updated_at: datetime
+    job_ids: tuple[str, ...]
+    latest_run_id: UUID | None
+    latest_run_state: str | None
+    latest_plan_id: UUID | None
+    latest_plan_status: str | None
 
 
 class ExtractionVersionResponse(ApiModel):
@@ -162,6 +167,8 @@ class LinkedPlanResponse(ApiModel):
 class EventListResponse(ApiModel):
     events: tuple[EventSummaryResponse, ...]
     next_cursor: str | None
+    total_count: int
+    scenario_lifecycle_counts: dict[str, int]
 
 
 class EventDetailResponse(ApiModel):
@@ -189,7 +196,7 @@ class JobResponse(ApiModel):
     job_type: str
     start_day: int
     duration_days: int
-    shortfall_bopd: Decimal
+    shortfall_bopd: Decimal | float
     locked: bool
     lock_reason: str | None
     status: JobStatus
@@ -200,7 +207,7 @@ class ResourceResponse(ApiModel):
     id: str
     type: ResourceType
     name: str
-    capacity: Decimal
+    capacity: Decimal | float
     unit: str
     active: bool
     metadata: dict[str, Any]
@@ -211,18 +218,27 @@ class BookingResponse(ApiModel):
     resource_id: str
     start_day: int
     end_day: int
-    load: Decimal
+    load: Decimal | float
     status: BookingStatus
     job_id: str | None
     cargo_id: str | None
     row_version: int
 
 
+class UnavailabilityResponse(ApiModel):
+    id: str
+    resource_id: str
+    start_day: int
+    end_day: int
+    kind: Literal["maintenance", "unavailable"]
+    reason: str
+
+
 class WeatherResponse(ApiModel):
     location: str
     day: int
     metric: str
-    value: Decimal | None
+    value: Decimal | float | None
     go: bool | None
     source: str
 
@@ -230,10 +246,10 @@ class WeatherResponse(ApiModel):
 class CapacityPointResponse(ApiModel):
     resource_id: str
     day: int
-    used: Decimal
-    capacity: Decimal
-    overflow: Decimal
-    utilization_percent: Decimal
+    used: Decimal | float
+    capacity: Decimal | float
+    overflow: Decimal | float
+    utilization_percent: Decimal | float
     booking_ids: tuple[str, ...]
 
 
@@ -241,7 +257,7 @@ class CapacityResponse(ApiModel):
     resource_id: str
     unit: str
     feasible: bool
-    max_overflow: Decimal
+    max_overflow: Decimal | float
     points: tuple[CapacityPointResponse, ...]
 
 
@@ -253,6 +269,7 @@ class ScheduleResponse(ApiModel):
     jobs: tuple[JobResponse, ...]
     resources: tuple[ResourceResponse, ...]
     bookings: tuple[BookingResponse, ...]
+    unavailability: tuple[UnavailabilityResponse, ...]
     weather: tuple[WeatherResponse, ...]
     capacity: tuple[CapacityResponse, ...]
 
@@ -276,7 +293,7 @@ class LeverResponse(ApiModel):
     name: str
     allowed: bool
     approval: str | None
-    cost_weight: Decimal
+    cost_weight: Decimal | float
 
 
 class PolicyLeversResponse(ApiModel):
@@ -285,10 +302,10 @@ class PolicyLeversResponse(ApiModel):
 
 class WeightProfileResponse(ApiModel):
     name: str
-    delay_weight: Decimal
-    lever_cost_weight: Decimal
-    movement_weight: Decimal
-    risk_weight: Decimal
+    delay_weight: Decimal | float
+    lever_cost_weight: Decimal | float
+    movement_weight: Decimal | float
+    risk_weight: Decimal | float
 
 
 class PolicyProfilesResponse(ApiModel):
@@ -353,6 +370,7 @@ class ReadinessListResponse(ApiModel):
     schedule_version: int
     items: tuple[ReadinessItemResponse, ...]
     summary: ReadinessSummary
+    total_count: int
 
 
 class ReadinessSourceResponse(ApiModel):
@@ -370,7 +388,7 @@ class ReadinessSuggestionResponse(ApiModel):
     readiness_item_id: str
     proposed_patch: dict[str, Any]
     source_excerpt: str | None
-    confidence: Decimal | None
+    confidence: Decimal | float | None
     base_row_version: int
     state: str
     review_actor: str | None

@@ -2,6 +2,7 @@ import os
 from uuid import UUID
 
 import pytest
+from app.application.event_service import event_lifecycle
 from app.config import Settings
 from app.main import create_app
 from app.persistence.database import create_async_engine, create_session_factory
@@ -41,6 +42,79 @@ def _settings() -> Settings:
     if not database_url:
         pytest.skip("set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures")
     return Settings(environment="test", database_url=database_url)
+
+
+@pytest.mark.parametrize(
+    ("event_state", "run_state", "plan_status", "expected"),
+    [
+        ("received", None, None, "draft"),
+        ("planning", None, None, "reading_input"),
+        ("clarification_needed", None, None, "needs_clarification"),
+        ("extracted", None, None, "ready_to_investigate"),
+        ("extracted", "running", None, "investigating"),
+        ("closed", "completed", None, "investigating"),
+        ("extracted", "failed", "proposed", "options_ready"),
+        ("extracted", "failed", "approved", "approved"),
+        ("closed", None, None, "integrity_error"),
+        ("extracted", "unknown", None, "integrity_error"),
+        ("extracted", None, "unknown", "integrity_error"),
+    ],
+)
+def test_event_lifecycle_uses_frozen_precedence(
+    event_state: str,
+    run_state: str | None,
+    plan_status: str | None,
+    expected: str,
+) -> None:
+    assert event_lifecycle(event_state, run_state, plan_status) == expected
+
+
+@pytest.mark.skipif(
+    not os.getenv("RIPPLE_DATABASE_URL"),
+    reason="set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures",
+)
+def test_event_read_model_counts_links_and_scenario_lifecycle() -> None:
+    settings = Settings(environment="local", database_url=os.environ["RIPPLE_DATABASE_URL"])
+    headers = {"X-Scenario-ID": "fleet-scale"}
+    with TestClient(create_app(settings)) as client:
+        first = client.get("/api/v1/events", headers=headers, params={"limit": 3})
+        second = client.get(
+            "/api/v1/events",
+            headers=headers,
+            params={"limit": 3, "after": first.json()["next_cursor"]},
+        )
+        filtered = client.get(
+            "/api/v1/events",
+            headers=headers,
+            params={"q": "alpha-16", "limit": 1},
+        )
+        job_filtered = client.get(
+            "/api/v1/events",
+            headers=headers,
+            params={"job_id": "FS-JOB-017", "limit": 10},
+        )
+
+    first_body = first.json()
+    second_body = second.json()
+    assert first.status_code == 200
+    assert first_body["total_count"] == 25
+    assert len(first_body["events"]) == 3
+    assert sum(first_body["scenario_lifecycle_counts"].values()) == 25
+    assert first_body["events"][0]["latest_plan_status"] in {None, "proposed", "approved"}
+    assert {"job_ids", "latest_run_id", "latest_plan_id"} <= set(first_body["events"][0])
+    assert second.status_code == 200
+    assert second_body["total_count"] == 25
+    assert not {
+        event["id"] for event in first_body["events"]
+    }.intersection(event["id"] for event in second_body["events"])
+    assert filtered.status_code == 200
+    assert filtered.json()["total_count"] == 1
+    assert filtered.json()["scenario_lifecycle_counts"] == first_body[
+        "scenario_lifecycle_counts"
+    ]
+    assert job_filtered.status_code == 200
+    assert job_filtered.json()["total_count"] >= 1
+    assert all("FS-JOB-017" in event["job_ids"] for event in job_filtered.json()["events"])
 
 
 def _extraction_payload() -> dict[str, object]:

@@ -14,11 +14,13 @@ from app.persistence.database import create_async_engine, create_session_factory
 from app.persistence.models import Booking as BookingRow
 from app.persistence.models import ReadinessItem as ReadinessItemRow
 from app.persistence.repositories import (
+    DecisionRepository,
     ReadinessRepository,
     ScheduleRepository,
     to_booking,
     to_readiness_item,
 )
+from app.security.input_boundary import decode_cursor, encode_cursor
 
 SEED_PATH = Path(__file__).parents[2] / "seed" / "offshore_a12.sql"
 EXPECTED_SEED_SHA256 = "ad6cfef833c4291eea135ad92786c34b6e6ca1d5bfefda45150506f04b58687b"
@@ -117,6 +119,57 @@ def test_real_postgres_repository_snapshot_preserves_scenario_boundary() -> None
             assert await repository.get_schedule_version("not-a-seeded-scenario") is None
             with pytest.raises(LookupError, match="unknown scenario"):
                 await repository.load_snapshot("not-a-seeded-scenario")
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(
+    not os.getenv("RIPPLE_DATABASE_URL"),
+    reason="set RIPPLE_DATABASE_URL after applying migration and seed",
+)
+def test_decision_repository_cursor_is_descending_and_scenario_scoped() -> None:
+    database_url = os.environ["RIPPLE_DATABASE_URL"]
+
+    async def scenario() -> None:
+        engine = create_async_engine(database_url)
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            repository = DecisionRepository(session)
+            first_page = await repository.list_for_scenario("fleet-scale", limit=2)
+            assert len(first_page) == 2
+            assert list(first_page) == sorted(
+                first_page,
+                key=lambda row: (row.created_at, row.id),
+                reverse=True,
+            )
+
+            cursor = encode_cursor(first_page[-1].created_at, first_page[-1].id)
+            after_created_at, after_id = decode_cursor(cursor)
+            second_page = await repository.list_for_scenario(
+                "fleet-scale",
+                after_created_at=after_created_at,
+                after_id=after_id,
+                limit=2,
+            )
+            repeated_second_page = await repository.list_for_scenario(
+                "fleet-scale",
+                after_created_at=after_created_at,
+                after_id=after_id,
+                limit=2,
+            )
+
+            assert cursor
+            assert {row.id for row in first_page}.isdisjoint(row.id for row in second_page)
+            assert [row.id for row in second_page] == [
+                row.id for row in repeated_second_page
+            ]
+            assert all(
+                (row.created_at, row.id)
+                < (first_page[-1].created_at, first_page[-1].id)
+                for row in second_page
+            )
+            assert await repository.list_for_scenario("not-a-seeded-scenario", limit=2) == ()
         await engine.dispose()
 
     asyncio.run(scenario())

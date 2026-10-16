@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { RipplePanel, type RippleContext, type RippleMode } from '@/components/agent/ripple-panel'
 import { GlobalHeader, type GlobalHeaderProps } from './global-header'
 
-export interface AppShellProps extends Pick<GlobalHeaderProps, 'activeScenario' | 'askRippleTrigger' | 'demoMode' | 'resetDemoTrigger' | 'onAskRipple'> {
+export interface AppShellProps extends Pick<GlobalHeaderProps, 'activeScenario' | 'syntheticDataLabel' | 'scenarioId' | 'scenarioOptions' | 'scenarioLoading' | 'scenarioError' | 'onScenarioChange' | 'askRippleTrigger' | 'demoMode' | 'resetDemoTrigger' | 'onAskRipple'> {
   children: ReactNode
 }
 
@@ -25,6 +25,15 @@ export function AppShell({ children, ...headerProps }: AppShellProps) {
     return () => window.removeEventListener('ripple:open', handleRippleOpen)
   }, [])
 
+  useEffect(() => {
+    const handleScenarioChange = () => {
+      setPanelOpen(false)
+      setPanelContext({ route: window.location.pathname })
+    }
+    window.addEventListener('ripple:scenario-change', handleScenarioChange)
+    return () => window.removeEventListener('ripple:scenario-change', handleScenarioChange)
+  }, [])
+
   const openAskPanel = () => {
     setPanelMode('ask')
     setPanelContext({ route: window.location.pathname })
@@ -36,6 +45,6 @@ export function AppShell({ children, ...headerProps }: AppShellProps) {
     <div className="ripple-shell__viewport mt-14 h-[calc(100dvh-3.5rem)] min-h-0 overflow-auto [&>.app.unified]:!h-full [&>.app.unified]:!min-h-0 [&>.ds-page]:!min-h-full">
       {children}
     </div>
-    <RipplePanel open={panelOpen} mode={panelMode} context={panelContext} onOpenChange={setPanelOpen} onPlanReady={(planId) => { void navigate({ to: '/decisions/$planId', params: { planId } }) }} />
+    <RipplePanel key={`ripple-${headerProps.scenarioId ?? 'unknown'}`} open={panelOpen} mode={panelMode} context={panelContext} onOpenChange={setPanelOpen} onEventCreated={(eventId) => { setPanelOpen(false); void navigate({ to: '/changes/$eventId', params: { eventId } }) }} onPlanReady={(planId) => { void navigate({ to: '/decisions/$planId', params: { planId } }) }} />
   </div>
 }

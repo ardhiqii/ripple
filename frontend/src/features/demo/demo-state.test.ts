@@ -10,6 +10,7 @@ function storage(values: Record<string, string>) {
   return {
     getItem: (key: string) => values[key] ?? null,
     removeItem: (key: string) => { delete values[key] },
+    setItem: (key: string, value: string) => { values[key] = value },
   }
 }
 
@@ -39,5 +40,30 @@ describe('demo local state helpers', () => {
     expect(describeDemoLocalState({ local, session }).some((item) => item.present)).toBe(false)
     expect(demoResetCleanupPlan.clearQueryCache).toBe(true)
     expect(demoResetCleanupPlan.preserveUiOnFailure).toBe(true)
+  })
+
+  it('clears only the selected scenario storage keys when scoped', () => {
+    const local = storage({ 'ripple.demo.draft:fleet-scale': 'draft', 'ripple.demo.draft:A-12-base': 'keep' })
+    const result = clearDemoLocalState({ local }, 'fleet-scale')
+
+    expect(result.cleared.map((entry) => entry.key)).toEqual(['ripple.demo.draft'])
+    expect(local.getItem('ripple.demo.draft:fleet-scale')).toBeNull()
+    expect(local.getItem('ripple.demo.draft:A-12-base')).toBe('keep')
+  })
+
+  it('removes only active runs belonging to the selected scenario', () => {
+    const session = storage({
+      'ripple.active-runs': JSON.stringify([
+        { runId: 'run-a', eventId: 'event-a', scenarioId: 'A-12-base' },
+        { runId: 'run-fleet', eventId: 'event-fleet', scenarioId: 'fleet-scale' },
+      ]),
+    })
+
+    const result = clearDemoLocalState({ session }, 'A-12-base')
+
+    expect(result.cleared.map((entry) => entry.key)).toEqual(['ripple.active-runs'])
+    expect(JSON.parse(session.getItem('ripple.active-runs') ?? '[]')).toEqual([
+      { runId: 'run-fleet', eventId: 'event-fleet', scenarioId: 'fleet-scale' },
+    ])
   })
 })

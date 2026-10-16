@@ -47,6 +47,8 @@ class ReadinessService:
         confidence: Confidence | None,
         risk: str | None,
         item_id: str | None,
+        source_type: str | None,
+        search: str | None,
         as_of: datetime | None = None,
     ) -> ReadinessListResponse:
         as_of = as_of or datetime.now(UTC)
@@ -54,14 +56,51 @@ class ReadinessService:
             snapshot = await ScheduleRepository(self._session).load_snapshot(scenario_id)
         except LookupError as exc:
             raise self._scenario_not_found(scenario_id) from exc
-        items = await ReadinessRepository(self._session).list_for_scenario(scenario_id, job_id)
-        responses = self._derived_items(snapshot.jobs, items, as_of)
+        items = await ReadinessRepository(self._session).list_for_scenario(scenario_id)
+        all_responses = self._derived_items(snapshot.jobs, items, as_of)
+        summary = ReadinessSummary(
+            total=len(all_responses),
+            at_risk=sum(
+                1
+                for item in all_responses
+                if not item.feasible_for_target or (item.effective_slack or 0) < 0
+            ),
+            stale=sum(1 for item in all_responses if item.stale),
+            low_confidence=sum(
+                1 for item in all_responses if item.confidence is Confidence.LOW
+            ),
+            blocked=sum(1 for item in all_responses if item.status is ReadinessStatus.BLOCKED),
+        )
+        responses = all_responses
+        if job_id is not None and job_id.strip():
+            responses = tuple(item for item in responses if item.job_id == job_id.strip())
         if status is not None:
             responses = tuple(item for item in responses if item.status is status)
         if confidence is not None:
             responses = tuple(item for item in responses if item.confidence is confidence)
         if item_id is not None:
             responses = tuple(item for item in responses if item.id == item_id)
+        if source_type is not None and source_type.strip():
+            normalized_source_type = source_type.strip().lower()
+            responses = tuple(
+                item for item in responses if item.source_type.lower() == normalized_source_type
+            )
+        normalized_search = search.strip().lower() if search and search.strip() else None
+        if normalized_search is not None:
+            responses = tuple(
+                item
+                for item in responses
+                if any(
+                    normalized_search in value.lower()
+                    for value in (
+                        item.id,
+                        item.job_id,
+                        item.stage,
+                        item.source_type,
+                        item.source_reference or "",
+                    )
+                )
+            )
         if risk:
             normalized = risk.strip().lower()
             if normalized == "at_risk":
@@ -79,23 +118,13 @@ class ReadinessService:
                     "Unsupported readiness risk filter.",
                     details={"risk": risk, "allowed": ["at_risk", "stale"]},
                 )
-        summary = ReadinessSummary(
-            total=len(responses),
-            at_risk=sum(
-                1
-                for item in responses
-                if not item.feasible_for_target or (item.effective_slack or 0) < 0
-            ),
-            stale=sum(1 for item in responses if item.stale),
-            low_confidence=sum(1 for item in responses if item.confidence is Confidence.LOW),
-            blocked=sum(1 for item in responses if item.status is ReadinessStatus.BLOCKED),
-        )
         version = snapshot.schedule_version
         return ReadinessListResponse(
             scenario_id=scenario_id,
             schedule_version=version,
             items=responses,
             summary=summary,
+            total_count=len(responses),
         )
 
     async def detail(

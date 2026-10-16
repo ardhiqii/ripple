@@ -65,6 +65,7 @@ export const scheduleFixture = {
       row_version: 1,
     },
   ],
+  unavailability: [],
   weather: [
     {
       location: 'North Delta',
@@ -160,6 +161,7 @@ export const readinessFixture = {
     },
   ],
   summary: { total: 2, at_risk: 2, stale: 1, low_confidence: 2, blocked: 0 },
+  total_count: 2,
 } satisfies ReadinessListResponse
 
 export const readinessDetailFixture = {
@@ -202,9 +204,29 @@ export const eventsFixture = {
       raw_text_preview: 'Synthetic vendor update for A-12.',
       created_at: timestamp,
       updated_at: timestamp,
+      job_ids: ['A-12'],
+      latest_run_id: null,
+      latest_run_state: null,
+      latest_plan_id: null,
+      latest_plan_status: null,
     },
   ],
   next_cursor: null,
+  total_count: 1,
+  scenario_lifecycle_counts: {
+    draft: 0,
+    reading_input: 0,
+    needs_clarification: 0,
+    ready_to_investigate: 1,
+    investigating: 0,
+    options_ready: 0,
+    stale: 0,
+    approved: 0,
+    rejected: 0,
+    superseded: 0,
+    failed: 0,
+    integrity_error: 0,
+  },
 } satisfies EventListResponse
 
 export const policyLeversFixture = {

@@ -1,22 +1,23 @@
 import type { CSSProperties } from 'react'
 
-export function TimelineMetricStrip() {
-  const metrics = [['Barges', '72%'], ['Supply boats', '61%'], ['Test bays', '54%'], ['Lift crews', '78%']] as const
+import type { CapacityMetrics, CapacityMetric } from '@/features/schedule/capacity-metrics'
 
+export function TimelineMetricStrip({ metrics }: { metrics: CapacityMetrics }) {
   return (
     <div className="capacity-summary" aria-label="Fleet capacity summary">
-      <div className="total">
-        <span>Total fleet utilization</span>
-        <b>68%</b>
-        <i><em /></i>
-      </div>
-      {metrics.map(([label, value]) => (
-        <div key={label}>
-          <span>{label}</span>
-          <b>{value}</b>
-          <i style={{ '--fill': value } as CSSProperties}><em /></i>
-        </div>
-      ))}
+      <MetricCell metric={metrics.fleet} total />
+      {metrics.groups.map((metric) => <MetricCell key={metric.label} metric={metric} />)}
+    </div>
+  )
+}
+
+function MetricCell({ metric, total = false }: { metric: CapacityMetric; total?: boolean }) {
+  const overflow = metric.overflow > 0 ? ` Conflict: ${metric.overflow} capacity overflow.` : ''
+  return (
+    <div className={total ? 'total' : undefined} title={`${metric.explanation} Visible range: ${metric.visibleRange}. Scope: ${metric.scope}. Eligible resource-days: ${metric.eligiblePointCount}.${overflow}`}>
+      <span>{metric.label}</span>
+      <b>{metric.display}{metric.overflow > 0 ? <span className="ml-1 text-danger" aria-label="Capacity conflict">!</span> : null}</b>
+      <i style={{ '--fill': `${metric.barPercent}%` } as CSSProperties}><em /></i>
     </div>
   )
 }

@@ -46,12 +46,12 @@ describe('NewChangeSheet', () => {
 
   it('keeps submission failure visible with the pasted draft intact', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'database_unavailable', message: 'database unavailable' } }), { status: 503, headers: { 'Content-Type': 'application/json' } })))
     render(<NewChangeSheet {...baseProps} open />)
 
     const input = screen.getByRole('textbox', { name: 'Pasted message' })
     await user.type(input, 'Weather window changed for D-07.')
-    await user.click(screen.getByRole('button', { name: 'Review change' }))
+    await user.click(screen.getByRole('button', { name: 'Create and read change' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/change could not be submitted/i)
     expect(input).toHaveValue('Weather window changed for D-07.')

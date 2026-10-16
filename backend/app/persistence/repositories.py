@@ -34,7 +34,7 @@ from app.domain.plans import Plan as DomainPlan
 from app.domain.plans import PlanEvidence as DomainPlanEvidence
 from app.domain.plans import PlanOption as DomainPlanOption
 from app.domain.readiness import ReadinessItem
-from app.domain.resources import Booking, Resource
+from app.domain.resources import Booking, Resource, ResourceUnavailability
 from app.engine.simulate import ScheduleSnapshot
 from app.engine.weather import WeatherObservation
 from app.persistence.models import (
@@ -66,7 +66,10 @@ from app.persistence.models import (
 from app.persistence.models import (
     Resource as ResourceRow,
 )
-from sqlalchemy import func, select, update
+from app.persistence.models import (
+    ResourceUnavailability as ResourceUnavailabilityRow,
+)
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -182,6 +185,31 @@ def to_weather_observation(row: WeatherForecast) -> WeatherObservation:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ResourceUnavailabilityRecord:
+    """Persisted resource interval exposed by the schedule read model."""
+
+    id: str
+    scenario_id: str
+    resource_id: str
+    start_day: int
+    end_day: int
+    kind: str
+    reason: str
+
+
+def to_resource_unavailability(row: ResourceUnavailabilityRow) -> ResourceUnavailabilityRecord:
+    return ResourceUnavailabilityRecord(
+        id=row.id,
+        scenario_id=row.scenario_id,
+        resource_id=row.resource_id,
+        start_day=row.start_day,
+        end_day=row.end_day,
+        kind=row.kind,
+        reason=row.reason,
+    )
+
+
 class ScheduleRepository:
     """Load complete, scenario-scoped engine snapshots."""
 
@@ -233,6 +261,16 @@ class ScheduleRepository:
             .where(WeatherForecast.scenario_id == scenario_id)
             .order_by(WeatherForecast.location, WeatherForecast.day)
         )
+        unavailability_result = await self._session.execute(
+            select(ResourceUnavailabilityRow)
+            .where(ResourceUnavailabilityRow.scenario_id == scenario_id)
+            .order_by(
+                ResourceUnavailabilityRow.resource_id,
+                ResourceUnavailabilityRow.start_day,
+                ResourceUnavailabilityRow.end_day,
+                ResourceUnavailabilityRow.id,
+            )
+        )
         return ScheduleSnapshot(
             scenario_id=scenario_id,
             jobs=tuple(to_job(row) for row in jobs_result.scalars().all()),
@@ -243,7 +281,89 @@ class ScheduleRepository:
             ),
             forecast=tuple(to_weather_observation(row) for row in forecast_result.scalars().all()),
             schedule_version=state.version,
+            unavailability=tuple(
+                ResourceUnavailability(
+                    id=row.id,
+                    scenario_id=row.scenario_id,
+                    resource_id=row.resource_id,
+                    start_day=row.start_day,
+                    end_day=row.end_day,
+                    kind=row.kind,
+                    reason=row.reason,
+                )
+                for row in unavailability_result.scalars().all()
+            ),
         )
+
+    async def list_unavailability(
+        self,
+        scenario_id: str,
+        *,
+        resource_ids: set[str] | None = None,
+        from_day: int | None = None,
+        to_day: int | None = None,
+    ) -> tuple[ResourceUnavailabilityRecord, ...]:
+        """Read inclusive intervals with optional resource and range scopes."""
+
+        if resource_ids is not None and not resource_ids:
+            return ()
+        statement = select(ResourceUnavailabilityRow).where(
+            ResourceUnavailabilityRow.scenario_id == scenario_id
+        )
+        if resource_ids is not None:
+            statement = statement.where(ResourceUnavailabilityRow.resource_id.in_(resource_ids))
+        if from_day is not None:
+            statement = statement.where(ResourceUnavailabilityRow.end_day >= from_day)
+        if to_day is not None:
+            statement = statement.where(ResourceUnavailabilityRow.start_day <= to_day)
+        statement = statement.order_by(
+            ResourceUnavailabilityRow.resource_id,
+            ResourceUnavailabilityRow.start_day,
+            ResourceUnavailabilityRow.end_day,
+            ResourceUnavailabilityRow.id,
+        )
+        result = await self._session.execute(statement)
+        return tuple(to_resource_unavailability(row) for row in result.scalars().all())
+
+    async def create_unavailability(
+        self,
+        *,
+        id: str,
+        scenario_id: str,
+        resource_id: str,
+        start_day: int,
+        end_day: int,
+        kind: str,
+        reason: str,
+    ) -> ResourceUnavailabilityRecord:
+        """Validate and persist one scenario-owned inclusive interval."""
+
+        if end_day < start_day:
+            raise ValueError("resource unavailability end_day must be on or after start_day")
+        if kind not in {"maintenance", "unavailable"}:
+            raise ValueError("resource unavailability kind is invalid")
+        if not reason.strip():
+            raise ValueError("resource unavailability reason is required")
+        resource_result = await self._session.execute(
+            select(ResourceRow.scenario_id).where(ResourceRow.id == resource_id)
+        )
+        resource_scenario = resource_result.scalar_one_or_none()
+        if resource_scenario is None:
+            raise LookupError(f"unknown resource: {resource_id}")
+        if resource_scenario != scenario_id:
+            raise ValueError(f"resource {resource_id} belongs to another scenario")
+        row = ResourceUnavailabilityRow(
+            id=id,
+            scenario_id=scenario_id,
+            resource_id=resource_id,
+            start_day=start_day,
+            end_day=end_day,
+            kind=kind,
+            reason=reason,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return to_resource_unavailability(row)
 
     async def set_locked_version(
         self, state: ScheduleState, version: int, *, updated_at: datetime
@@ -578,7 +698,7 @@ class EventRepository:
         search: str | None = None,
         after_created_at: datetime | None = None,
         after_id: UUID | None = None,
-        limit: int = 101,
+        limit: int | None = 101,
     ) -> tuple[Event, ...]:
         statement = select(Event).where(Event.scenario_id == scenario_id)
         if nature is not None:
@@ -589,12 +709,13 @@ class EventRepository:
             statement = statement.where(Event.raw_text.ilike(f"%{search}%"))
         if after_created_at is not None and after_id is not None:
             statement = statement.where(
-                (Event.created_at > after_created_at)
-                | ((Event.created_at == after_created_at) & (Event.id > after_id))
+                (Event.created_at < after_created_at)
+                | ((Event.created_at == after_created_at) & (Event.id < after_id))
             )
-        result = await self._session.execute(
-            statement.order_by(Event.created_at, Event.id).limit(limit)
-        )
+        statement = statement.order_by(Event.created_at.desc(), Event.id.desc())
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self._session.execute(statement)
         return tuple(result.scalars().all())
 
     async def list_extractions(
@@ -1106,6 +1227,18 @@ class DecisionReadBundle:
     changes: tuple[DecisionChange, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class DecisionContextSnapshot:
+    """Decision-time context copied from the plan's verified lineage."""
+
+    event_id: UUID
+    plan_version: int
+    event_nature: str | None
+    event_cause: str | None
+    job_ids: tuple[str, ...]
+    context_status: str = "captured"
+
+
 def to_decision(row: Decision) -> DomainDecision:
     if row.schedule_version_before is None:
         raise ValueError(f"decision {row.id} has no schedule_version_before")
@@ -1143,6 +1276,67 @@ class DecisionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def context_for_plan(
+        self, plan_id: UUID, scenario_id: str
+    ) -> DecisionContextSnapshot | None:
+        """Read the plan's event and exact run extraction before a decision write.
+
+        The extraction join is pinned to the ``AgentRun.extraction_version``
+        used by this plan. It never follows the event's latest extraction or
+        mutable event projections. Nature, cause, and job IDs all come from
+        the exact versioned extraction payload.
+        """
+
+        result = await self._session.execute(
+            select(
+                Plan.event_id,
+                Plan.version,
+                EventExtraction.extracted_json,
+            )
+            .select_from(Plan)
+            .join(Event, Event.id == Plan.event_id)
+            .join(
+                AgentRun,
+                and_(
+                    AgentRun.id == Plan.run_id,
+                    AgentRun.event_id == Plan.event_id,
+                ),
+            )
+            .join(
+                EventExtraction,
+                and_(
+                    EventExtraction.event_id == Plan.event_id,
+                    EventExtraction.version == AgentRun.extraction_version,
+                ),
+            )
+            .where(Plan.id == plan_id, Event.scenario_id == scenario_id)
+            .with_for_update(of=(Plan, Event, AgentRun, EventExtraction))
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+
+        event_id, plan_version, extracted_json = row
+        event_nature: str | None = None
+        event_cause: str | None = None
+        job_ids: tuple[str, ...] = ()
+        if isinstance(extracted_json, Mapping):
+            nature = extracted_json.get("nature")
+            cause = extracted_json.get("cause")
+            event_nature = nature if isinstance(nature, str) else None
+            event_cause = cause if isinstance(cause, str) else None
+            raw_job_ids = extracted_json.get("job_ids", ())
+            if isinstance(raw_job_ids, (list, tuple)):
+                job_ids = tuple(value for value in raw_job_ids if isinstance(value, str))
+
+        return DecisionContextSnapshot(
+            event_id=event_id,
+            plan_version=plan_version,
+            event_nature=event_nature,
+            event_cause=event_cause,
+            job_ids=job_ids,
+        )
+
     async def list_for_scenario(
         self,
         scenario_id: str,
@@ -1151,7 +1345,7 @@ class DecisionRepository:
         plan_id: UUID | None = None,
         after_created_at: datetime | None = None,
         after_id: UUID | None = None,
-        limit: int = 101,
+        limit: int | None = 101,
     ) -> tuple[Decision, ...]:
         statement = (
             select(Decision)
@@ -1165,12 +1359,13 @@ class DecisionRepository:
             statement = statement.where(Decision.plan_id == plan_id)
         if after_created_at is not None and after_id is not None:
             statement = statement.where(
-                (Decision.created_at > after_created_at)
-                | ((Decision.created_at == after_created_at) & (Decision.id > after_id))
+                (Decision.created_at < after_created_at)
+                | ((Decision.created_at == after_created_at) & (Decision.id < after_id))
             )
-        result = await self._session.execute(
-            statement.order_by(Decision.created_at, Decision.id).limit(limit)
-        )
+        statement = statement.order_by(Decision.created_at.desc(), Decision.id.desc())
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self._session.execute(statement)
         return tuple(result.scalars().all())
 
     async def get(self, decision_id: UUID, scenario_id: str) -> DecisionRecord | None:
@@ -1235,10 +1430,17 @@ class DecisionRepository:
         schedule_version_before: int,
         schedule_version_after: int | None,
         created_at: datetime,
+        context: DecisionContextSnapshot,
     ) -> Decision:
         row = Decision(
             id=decision_id,
             plan_id=plan_id,
+            event_id=context.event_id,
+            plan_version=context.plan_version,
+            event_nature=context.event_nature,
+            event_cause=context.event_cause,
+            job_ids=list(context.job_ids),
+            context_status=context.context_status,
             selected_option_id=selected_option_id,
             action=action,
             actor=actor,
@@ -1400,6 +1602,7 @@ __all__ = [
     "CachedResponse",
     "DecisionRecord",
     "DecisionReadBundle",
+    "DecisionContextSnapshot",
     "DecisionRepository",
     "EventRepository",
     "IdempotencyRepository",

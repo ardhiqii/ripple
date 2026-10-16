@@ -2,3 +2,26 @@
 @import "tailwindcss/theme.css";
 @import "./tokens.css";
 @import "tailwindcss/utilities.css";
+
+@layer base {
+  a,
+  a:hover,
+  a:focus {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+.ripple-primary-nav a[aria-current='page'] {
+  position: relative;
+}
+
+.ripple-primary-nav a[aria-current='page']::before {
+  position: absolute;
+  inset-block: 5px;
+  inset-inline-start: 2px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  content: '';
+}

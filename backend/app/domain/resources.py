@@ -26,6 +26,33 @@ class Resource:
 
 
 @dataclass(frozen=True, slots=True)
+class ResourceUnavailability:
+    """Inclusive interval during which a resource cannot accept a booking."""
+
+    id: str
+    scenario_id: str
+    resource_id: str
+    start_day: int
+    end_day: int
+    kind: str
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.id.strip() or not self.scenario_id.strip() or not self.resource_id.strip():
+            raise InvalidEntityError(
+                "resource unavailability id, scenario_id, and resource_id are required"
+            )
+        if self.end_day < self.start_day:
+            raise InvalidEntityError(
+                "resource unavailability end_day must be on or after start_day"
+            )
+        if self.kind not in {"maintenance", "unavailable"}:
+            raise InvalidEntityError("resource unavailability kind is invalid")
+        if not self.reason.strip():
+            raise InvalidEntityError("resource unavailability reason is required")
+
+
+@dataclass(frozen=True, slots=True)
 class Booking:
     id: str
     scenario_id: str

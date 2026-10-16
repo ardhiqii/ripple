@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from app.api.middleware import RequestContextMiddleware
+from app.api.routers.ask import router as ask_router
 from app.api.routers.demo import router as demo_router
 from app.api.routers.events import router as events_router
 from app.api.routers.health import router as health_router
@@ -76,6 +77,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     application.add_middleware(RequestContextMiddleware, settings=resolved_settings)
     application.include_router(health_router, prefix="/api/v1")
+    application.include_router(ask_router, prefix="/api/v1")
     application.include_router(demo_router, prefix="/api/v1")
     application.include_router(schedule_router, prefix="/api/v1")
     application.include_router(policy_router, prefix="/api/v1")

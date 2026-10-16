@@ -7,6 +7,7 @@ from app.application.demo_service import (
     DemoService,
 )
 from app.application.dependencies import get_db_session
+from app.application.errors import ApplicationError
 from app.observability.metrics import MetricsRegistry, default_metrics, instrument_stream
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -39,10 +40,12 @@ async def reset_demo(
     session: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DemoResetResponse:
     environment, demo_scenario_id = _settings_context(request)
+    context = getattr(request.state, "context", None)
     return await DemoService(session).reset(
         payload.scenario_id,
         environment=environment,
         demo_scenario_id=demo_scenario_id,
+        request_scenario_id=getattr(context, "scenario_id", None),
     )
 
 
@@ -53,6 +56,14 @@ async def stream_recorded_demo(
     request: Request,
 ) -> StreamingResponse:
     environment, _ = _settings_context(request)
+    context = getattr(request.state, "context", None)
+    if getattr(context, "scenario_id", None) != scenario_id:
+        raise ApplicationError(
+            404,
+            "unknown_scenario",
+            "The scenario URL and request context must match.",
+            details={"scenario_id": scenario_id},
+        )
     service = DemoService()
     service.mode(environment=environment)
     service.recorded_fixture(scenario_id)

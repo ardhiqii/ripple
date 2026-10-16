@@ -63,6 +63,16 @@ def _fingerprint(request: SolveRequest) -> str:
             {"id": resource.id, "type": resource.type.value, "capacity": str(resource.capacity)}
             for resource in snapshot.resources
         ],
+        "unavailability": [
+            {
+                "id": interval.id,
+                "resource": interval.resource_id,
+                "start": interval.start_day,
+                "end": interval.end_day,
+                "kind": interval.kind,
+            }
+            for interval in snapshot.unavailability
+        ],
         "bookings": [
             {
                 "id": booking.id,
@@ -154,6 +164,20 @@ def _bad_weather_days(request: SolveRequest) -> set[int]:
             or (observation.value is not None and observation.value > request.pack.weather.maximum)
         )
     }
+
+
+def _unavailable_days(request: SolveRequest, resource_id: str) -> set[int]:
+    days: set[int] = set()
+    for interval in request.snapshot.unavailability:
+        if interval.resource_id != resource_id:
+            continue
+        days.update(
+            range(
+                max(interval.start_day, request.horizon_start),
+                min(interval.end_day, request.horizon_end) + 1,
+            )
+        )
+    return days
 
 
 def _booking_by_job(snapshot: ScheduleSnapshot) -> dict[str, tuple[Booking, ...]]:
@@ -256,6 +280,27 @@ def _build_model(request: SolveRequest) -> _ModelState:
     for intervals in by_resource.values():
         model.AddNoOverlap(intervals)
 
+    for job_id, bookings in booking_by_job.items():
+        job = jobs[job_id]
+        possible_starts = range(
+            request.horizon_start,
+            request.horizon_end - job.duration_days + 2,
+        )
+        for booking in bookings:
+            resource = next(
+                (item for item in request.snapshot.resources if item.id == booking.resource_id),
+                None,
+            )
+            if resource is None or resource.unit != "job":
+                continue
+            unavailable_days = _unavailable_days(request, resource.id)
+            for possible_start in possible_starts:
+                if any(
+                    day in unavailable_days
+                    for day in range(possible_start, possible_start + job.duration_days)
+                ):
+                    model.Add(job_starts[job_id] != possible_start)
+
     bad_days = _bad_weather_days(request)
     for job_id, bookings in booking_by_job.items():
         job = jobs[job_id]
@@ -288,6 +333,7 @@ def _build_model(request: SolveRequest) -> _ModelState:
             available_days[resource.id].update(
                 range(request.horizon_start, request.horizon_end + 1)
             )
+        available_days[resource.id].difference_update(_unavailable_days(request, resource.id))
 
     fixed_load: dict[tuple[str, int], int] = defaultdict(int)
     for booking in request.snapshot.bookings:
@@ -343,7 +389,10 @@ def _build_model(request: SolveRequest) -> _ModelState:
 
     for resource in deck_resources:
         capacity = _scaled(resource.capacity)
-        days = sorted(available_days[resource.id] | set(bad_days))
+        days = sorted(
+            (available_days[resource.id] | set(bad_days))
+            - _unavailable_days(request, resource.id)
+        )
         for day in days:
             terms = [
                 _scaled(cargo.deck_units) * cargo_assignments[cargo.id][day]
@@ -492,6 +541,7 @@ def _candidate_snapshot(
         readiness_items=tuple(readiness),
         forecast=request.snapshot.forecast,
         schedule_version=request.snapshot.schedule_version,
+        unavailability=request.snapshot.unavailability,
     )
     return candidate, tuple(
         sorted(changes, key=lambda item: (str(item["kind"]), str(item["target"])))

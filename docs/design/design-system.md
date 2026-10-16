@@ -53,13 +53,15 @@ Never rely on color alone. Add an icon, label, border treatment, or pattern for 
 
 ### Timeline color rules
 
-- Vendor controls the task block hue.
+- Vendor controls task block hue **only when the live response contains a typed, persisted vendor assignment**. Current live schedule responses do not, so bookings use neutral surfaces; never derive vendor from resource type. See [Timeline follow-up](../implementation/timeline-gemini-followup.md#1-evidence-and-decisions).
 - Planned work uses a light flat fill.
-- Work in progress uses a hard progress overlay, not a decorative gradient.
+- Work in progress uses an explicit text/icon status and a hard progress strip with accessible percentage, not a decorative gradient or a solid blue fill that resembles a vendor.
 - Completed work uses lower opacity and a check icon.
-- Weather hold uses a diagonal hatch.
+- Weather hold uses a diagonal hatch in a separate contextual/exception band, not a fake booking.
 - Conflict uses a diamond or warning icon.
 - Selection uses a 2px primary outline.
+- For live Fleet Timeline density, a normal resource row targets 82–88 px with a reserved slim issue rail **above**, one vertically centered booking lane, and a quiet overflow strip **below**. A real second concurrent visible booking lane or deliberate row expansion may increase height. Do not use per-day booking fragments or add row height per anomaly. See [centered-lanes contract](../implementation/timeline-centered-lanes.md#2-frozen-visual-model).
+- The **resource-day cell** carries one faint highest-severity issue tint (danger over warning); its full-range top-rail control centers a kind icon or distinct-issue count over the affected run. Hidden whole bookings use a neutral, clickable bottom range band with `+N bookings`, not an issue color. No-go weather tints only its date-header cell and sits below weekday; it never implies all resources are unavailable. Simple indicators use one-line tooltips; multi-event issues use rich, collision-safe hover/focus preview and full click/tap detail. See [centered-lanes contract](../implementation/timeline-centered-lanes.md#2-frozen-visual-model).
 
 ## Typography
 

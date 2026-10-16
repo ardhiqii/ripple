@@ -23,6 +23,7 @@ from app.persistence.models import (
     NotificationOutbox,
     Plan,
     PlanOption,
+    ResourceUnavailability,
     ScheduleState,
 )
 from app.persistence.models import Booking as BookingRow
@@ -54,6 +55,7 @@ def test_approval_is_atomic_idempotent_and_revalidates() -> None:
         run_ids: list[UUID] = []
         plan_ids: list[UUID] = []
         decision_ids: list[UUID] = []
+        unavailability_ids: list[str] = []
         original_version = 0
         original_job = (0, 0)
         original_booking = (0, 0, 0)
@@ -152,6 +154,41 @@ def test_approval_is_atomic_idempotent_and_revalidates() -> None:
                 await session.rollback()
 
                 await _set_version(factory, scenario_id, original_version)
+                interval_id = f"be23-approval-{uuid4()}"
+                async with session.begin():
+                    session.add(
+                        ResourceUnavailability(
+                            id=interval_id,
+                            scenario_id=scenario_id,
+                            resource_id="BRG-1",
+                            start_day=3,
+                            end_day=4,
+                            kind="maintenance",
+                            reason="approval revalidation test",
+                        )
+                    )
+                unavailability_ids.append(interval_id)
+                conflict_unavailability_plan_id = await create_plan(
+                    changes=(),
+                    label="newly unavailable historical booking",
+                )
+                conflict_unavailability_option_id = await _recommended_option(
+                    session, conflict_unavailability_plan_id
+                )
+                await session.rollback()
+                with pytest.raises(ApplicationError, match="no longer feasible"):
+                    await DecisionService(session, OFFSHORE_PACK).approve(
+                        scenario_id,
+                        conflict_unavailability_plan_id,
+                        ApprovePlanRequest(
+                            option_id=conflict_unavailability_option_id,
+                            expected_schedule_version=original_version,
+                        ),
+                        actor=actor,
+                        idempotency_key="approve-unavailability-conflict",
+                    )
+                await session.rollback()
+
                 conflict_plan_id = await create_plan(changes=(), label="version conflict")
                 conflict_option_id = await _recommended_option(session, conflict_plan_id)
                 await session.rollback()
@@ -259,6 +296,12 @@ def test_approval_is_atomic_idempotent_and_revalidates() -> None:
                         await session.execute(delete(AgentRun).where(AgentRun.id.in_(run_ids)))
                     if event_ids:
                         await session.execute(delete(Event).where(Event.id.in_(event_ids)))
+                    if unavailability_ids:
+                        await session.execute(
+                            delete(ResourceUnavailability).where(
+                                ResourceUnavailability.id.in_(unavailability_ids)
+                            )
+                        )
                     state = await session.scalar(
                         select(ScheduleState).where(ScheduleState.scenario_id == scenario_id)
                     )

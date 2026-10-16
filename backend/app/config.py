@@ -1,10 +1,11 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+ModelProvider = Literal["synthetic", "gemini_developer", "vertex"]
 
 
 class Settings(BaseSettings):
@@ -12,10 +13,18 @@ class Settings(BaseSettings):
 
     app_name: str = "Ripple API"
     app_version: str = "0.1.0"
-    environment: Literal["local", "test", "staging", "production"] = "local"
+    environment: Literal["local", "preview", "test", "staging", "production"] = "local"
     log_level: LogLevel = "INFO"
     demo_actor_id: str = "demo-planner"
     demo_scenario_id: str = "A-12-base"
+    synthetic_preview_extraction_enabled: bool = True
+    model_provider: ModelProvider = "synthetic"
+    intake_model: str = ""
+    gemini_api_key: SecretStr | None = None
+    vertex_project: str | None = None
+    vertex_location: str = "us-central1"
+    model_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    model_retry_attempts: int = Field(default=1, ge=0, le=2)
     database_url: str | None = None
     db_pool_size: int = Field(default=5, ge=1, le=50)
     db_max_overflow: int = Field(default=3, ge=0, le=50)

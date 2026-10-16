@@ -6,6 +6,8 @@ Primary target: a polished hackathon product that remains credible as an industr
 
 This plan turns the product proposal, technical plan, team summary, current timeline prototype, and the design system into one build direction. It is intentionally more specific than a normal product brief so the team can implement without reopening basic UX and architecture decisions.
 
+For FE-15+/BE-16+/INT-10+ synthetic-preview implementation, the [INT-10 frozen contract](../implementation/productization-plan.md) supersedes older MVP-off controls, unversioned API paths, multi-entity command search, reset-all language, and utilization wording below. This document remains product context, not permission to ship Alerts, upload, or real-data production behavior.
+
 Detailed control behavior, page-to-page handoffs, component ownership, button-to-API contracts, query invalidation, state machines, and per-screen acceptance criteria live in the [UI/UX interaction specification](../design/uiux-interaction-spec.md). Backend architecture, agent workflow, solver, persistence, streaming, reliability, security, testing, and deployment contracts live in the [backend and agentic specification](../engineering/backend-agentic-spec.md). The three documents are one implementation plan and should be reviewed together.
 
 ## 1. Product decision in one paragraph
@@ -106,7 +108,7 @@ Build eight screen templates:
 | 3 | Change Inbox | `/changes` | Intake and triage of requests, disruptions, and opportunities | Must |
 | 4 | Decision Workspace | `/changes/$eventId` and `/decisions/$planId` | Agent trace, verified options, comparison, reply, and approval | Must |
 | 5 | Decision History | `/history` | Auditable record of accepted, rejected, and superseded plans | Should |
-| 6 | Alerts and Daily Check | `/alerts` | Proactive risks and suggested replans | Could for hackathon, planned now |
+| 6 | Alerts and Daily Check | `/alerts` | Future proactive risks and suggested replans | MVP-off; no route/control rendered |
 | 7 | Policy and Data Health | `/settings/policy` | Action registry, source freshness, model assumptions | Should as read-only |
 | 8 | Demo Lab | `/demo` | Guided scenarios, reset, and A-12 side-by-side comparison | Must for judging |
 
@@ -119,16 +121,16 @@ The 56 px global header contains:
 - Product mark and active scenario name.
 - Primary tabs: Timeline, Readiness, Changes, History.
 - Global search or command launcher.
-- Alert icon with unresolved count.
+- No Alerts icon/count while the feature is MVP-off.
 - `Ask Ripple` button.
-- `Reset demo` action, visually secondary but always reachable in demo mode.
+- `Reset selected scenario` action, visually secondary and available only when metadata says `reset_allowed`.
 - User or environment menu containing Policy and Data Health.
 
-Do not put Alerts, Policy, and Demo Lab as equal top-level tabs. They are important but lower-frequency destinations.
+Do not put Policy and Demo Lab as equal top-level tabs. Alerts is MVP-off and has no rendered navigation/control.
 
 ### 5.3 Navigation behavior
 
-- `Ctrl/Cmd + K` opens command search for pages, jobs, resources, events, and decisions. It is not the AI prompt.
+- `Ctrl/Cmd + K` opens page-navigation search only. Entity search stays within its owning page; it is not the AI prompt.
 - `Ctrl/Cmd + J` opens or closes the Ripple panel.
 - Browser back restores previous filters and selected object through typed URL search parameters.
 - A selected job can deep-link as `/timeline?job=A-12&from=0&to=14`.
@@ -150,7 +152,7 @@ Do not put Alerts, Policy, and Demo Lab as equal top-level tabs. They are import
 
 ```text
 +--------------------------------------------------------------------------------+
-| Ripple | Timeline Readiness Changes History | Search | Alerts | Ask Ripple | User |
+| Ripple | Timeline Readiness Changes History | Search | Ask Ripple | Environment |
 +--------------------------------------------------------------------------------+
 | Optional page toolbar: date, filters, view controls, page actions               |
 +--------------------------------------------------------------------------------+
@@ -188,8 +190,8 @@ Purpose: answer "what is planned, what is constrained, and where is capacity ava
 
 Layout:
 
-- Compact metric strip for fleet utilization, late readiness, open conflicts, and conditional jobs.
-- Page toolbar with date navigation, today, range selector, group/filter controls, zoom, and export.
+- Compact metric strip for **Average planned load across resources**, group planned capacity load, readiness risk, and conflicts; denominator and sample count come from actual schedule capacity points.
+- Page toolbar with date navigation, actual Today or Scenario start, range selector, and functional group/filter controls; hide export until implemented.
 - Sticky resource rail on the left.
 - Sticky day/month calendar header.
 - Vertically sticky group headers for Barges, Supply Boats, Test Bays, and Lift Crews.
@@ -289,7 +291,7 @@ Event row content:
 New change flow:
 
 1. Paste text or choose a sample message.
-2. Optional file upload when implemented.
+2. File upload is post-MVP; the synthetic preview uses paste text only.
 3. Review extracted fields.
 4. Resolve missing information or correct extraction.
 5. Start investigation.
@@ -375,6 +377,8 @@ History is read-only. The product may offer `Start a similar change`, but never 
 
 ### 7.6 Alerts and Daily Check
 
+Post-MVP reference only. Do not render this page, alerts count, or daily-check control in the synthetic preview.
+
 Purpose: make proactive risk useful without turning the product into a noisy notification center.
 
 Alert groups:
@@ -411,7 +415,7 @@ Contents:
 
 - Scenario cards for A-12 request, A-12 with test-bay constraint, D-07 disruption, and E-02 opportunity when ready.
 - One-sentence learning goal on every scenario card.
-- Reset current scenario and reset all data.
+- Reset the selected synthetic scenario only, with confirmation and seed-version disclosure; there is no reset-all action.
 - Side-by-side A-12 comparison showing how one sentence changes the lever set and outcome.
 - Guided steps that point to the current action without locking the user into a tour.
 - Cached or recorded fallback state when the model endpoint is unavailable.
@@ -420,7 +424,7 @@ Contents:
 
 ### 8.1 Three entry modes
 
-1. **Submit a change**: paste a message or upload a document, review extraction, then investigate.
+1. **Submit a change**: paste a message, review extraction, then investigate. File upload is MVP-off.
 2. **Ask about current context**: ask a read-only question about the selected job, resource, readiness item, or plan.
 3. **Reply and replan**: add a hard constraint or preference to an existing plan and generate a new version.
 

@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from app.application.decision_service import (
@@ -19,7 +20,7 @@ from app.application.plan_service import (
     PlanDetailResponse,
     PlanService,
 )
-from app.domain.enums import DecisionAction
+from app.domain.enums import DecisionAction, EventNature
 from app.domain.policy import OFFSHORE_PACK
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse
@@ -108,6 +109,12 @@ async def list_decisions(
     request: Request,
     action: DecisionAction | None = Query(default=None),  # noqa: B008
     plan_id: UUID | None = Query(default=None),  # noqa: B008
+    job_id: str | None = Query(default=None, max_length=128),  # noqa: B008
+    actor: str | None = Query(default=None, max_length=128),  # noqa: B008
+    nature: EventNature | None = Query(default=None),  # noqa: B008
+    from_date: date | None = Query(default=None, alias="from"),  # noqa: B008
+    to_date: date | None = Query(default=None, alias="to"),  # noqa: B008
+    q: str | None = Query(default=None, max_length=200),  # noqa: B008
     limit: int = Query(default=50, ge=1, le=100),  # noqa: B008
     after: str | None = Query(default=None, max_length=512),  # noqa: B008
     session: AsyncSession = Depends(get_db_session),  # noqa: B008
@@ -118,6 +125,12 @@ async def list_decisions(
         plan_id=plan_id,
         limit=limit,
         after=after,
+        job_id=job_id,
+        actor=actor,
+        nature=nature.value if nature is not None else None,
+        from_date=from_date,
+        to_date=to_date,
+        search=q,
     )
 
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { ApiError, apiTransport, createApiTransport } from '@/api/transport'
 import type { components } from '@/api/generated/openapi'
-import { apiUrl } from '@/api/url'
 
 type PolicyDataHealthResponse = components['schemas']['PolicyDataHealthResponse']
 type PolicyLeversResponse = components['schemas']['PolicyLeversResponse']
@@ -38,26 +38,16 @@ export async function fetchPolicyData(fetcher: Fetcher = defaultFetcher): Promis
 
 export function usePolicyData() {
   return useQuery({
-    queryKey: ['policy', 'workspace'],
+    queryKey: apiTransport.queryKey('policy', 'workspace'),
     queryFn: () => fetchPolicyData(),
   })
 }
 
 async function fetchJson<T>(url: string, init: RequestInit, fetcher: Fetcher): Promise<T> {
-  const response = await fetcher(apiUrl(url), init)
-  let payload: unknown
   try {
-    payload = await response.json()
-  } catch {
-    payload = undefined
+    return await createApiTransport({ fetcher }).get<T>(url, { headers: init.headers })
+  } catch (error) {
+    if (error instanceof ApiError) throw new PolicyApiError(error.status, error.message || 'Policy data could not be loaded.')
+    throw new PolicyApiError(0, error instanceof Error && error.message ? error.message : 'Policy data could not be loaded.')
   }
-  if (!response.ok) throw new PolicyApiError(response.status, readMessage(payload) ?? 'Policy data could not be loaded.')
-  return payload as T
-}
-
-function readMessage(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const root = value as Record<string, unknown>
-  const error = root.error && typeof root.error === 'object' && !Array.isArray(root.error) ? root.error as Record<string, unknown> : root
-  return typeof error.message === 'string' ? error.message : typeof root.detail === 'string' ? root.detail : undefined
 }

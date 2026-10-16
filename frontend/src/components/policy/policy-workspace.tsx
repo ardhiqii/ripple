@@ -17,8 +17,8 @@ export interface PolicyWorkspaceProps {
   data: PolicyWorkspaceData
   search: PolicySearchState
   onSearchChange: (patch: Partial<PolicySearchState>) => void
-  onOpenLever: (leverName: string) => void
-  onExplainApprovalOwner: (approvalOwner: string | null) => void
+  onOpenLever?: (leverName: string) => void
+  onExplainApprovalOwner?: (approvalOwner: string | null) => void
   onCopyPolicyLink: (leverName: string) => void
   onViewAffectedItems: (sourceName: string) => void
   onUsedInDecisions?: (leverName: string) => void
@@ -51,12 +51,13 @@ export function PolicyWorkspace({
     const target = document.getElementById(`policy-section-${search.section}`)
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     target?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    target?.focus({ preventScroll: true })
   }, [search.section])
 
   const openLever = (lever: PolicyLeverView) => {
     setSelectedLever(lever)
     onSearchChange({ section: 'action-registry', lever: lever.name })
-    onOpenLever(lever.name)
+    onOpenLever?.(lever.name)
   }
 
   const closeLever = () => {
@@ -66,7 +67,7 @@ export function PolicyWorkspace({
 
   const explainOwner = (approvalOwner: string | null) => {
     setSelectedOwner(approvalOwner)
-    onExplainApprovalOwner(approvalOwner)
+    onExplainApprovalOwner?.(approvalOwner)
   }
 
   const closeOwner = () => setSelectedOwner(undefined)
@@ -97,22 +98,22 @@ export function PolicyWorkspace({
           ))}
         </nav>
 
-        <section id="policy-section-action-registry" className="ds-panel ds-stack" aria-labelledby="policy-heading-action-registry" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-action-registry" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-action-registry" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-action-registry" title="Action registry" description="Policy decides which actions the agent may expose to the solver." />
           <ActionRegistryTable data={data.levers} highlightedLever={search.lever} onOpenLever={openLever} onExplainApprovalOwner={explainOwner} onCopyPolicyLink={onCopyPolicyLink} onUsedInDecisions={onUsedInDecisions} />
         </section>
 
-        <section id="policy-section-weight-profiles" className="ds-panel ds-stack" aria-labelledby="policy-heading-weight-profiles" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-weight-profiles" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-weight-profiles" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-weight-profiles" title="Weight profiles" description="Configured objective weights are displayed as supplied by the policy API." />
           <WeightProfiles profiles={data.profiles} />
         </section>
 
-        <section id="policy-section-risk-rules" className="ds-panel ds-stack" aria-labelledby="policy-heading-risk-rules" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-risk-rules" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-risk-rules" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-risk-rules" title="Risk rules" description="Risk rules are part of the policy boundary, not a local editing surface." />
           <ContractNotice title="Risk-rule details are not supplied" detail="The current generated OpenAPI policy responses do not include risk-rule rows. No inferred rules or admin controls are shown." />
         </section>
 
-        <section id="policy-section-freshness-policy" className="ds-panel ds-stack" aria-labelledby="policy-heading-freshness-policy" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-freshness-policy" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-freshness-policy" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-freshness-policy" title="Freshness policy" description="Source health is evaluated against the stale threshold returned by the policy service." />
           <div className="grid gap-2 sm:grid-cols-2">
             <InfoCard label="Stale after" value={data.freshnessPolicy.staleAfterHours === null ? 'Not supplied' : `${data.freshnessPolicy.staleAfterHours} hours`} />
@@ -120,12 +121,12 @@ export function PolicyWorkspace({
           </div>
         </section>
 
-        <section id="policy-section-data-sources" className="ds-panel ds-stack" aria-labelledby="policy-heading-data-sources" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-data-sources" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-data-sources" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-data-sources" title="Data sources" description="Freshness and affected-item counts are read-only health signals." />
           <DataSourceTable data={data.sources} highlightedSource={search.source} onViewAffectedItems={(source) => { onSearchChange({ section: 'data-sources', source }); onViewAffectedItems(source) }} />
         </section>
 
-        <section id="policy-section-scenario-assumptions" className="ds-panel ds-stack" aria-labelledby="policy-heading-scenario-assumptions" style={{ padding: 'var(--ds-space-4)' }}>
+        <section id="policy-section-scenario-assumptions" tabIndex={-1} className="ds-panel ds-stack" aria-labelledby="policy-heading-scenario-assumptions" style={{ padding: 'var(--ds-space-4)' }}>
           <SectionHeader id="policy-heading-scenario-assumptions" title="Scenario assumptions" description="Assumptions remain visible as policy context and are not editable in this MVP view." />
           <ContractNotice title="Scenario assumptions are not supplied" detail="The current generated OpenAPI policy responses do not include scenario-assumption rows. Nothing is fabricated in their place." />
         </section>
@@ -162,7 +163,7 @@ function WeightProfiles({ profiles }: { profiles: WeightProfileView[] }) {
 
 function DataSourceTable({ data, highlightedSource, onViewAffectedItems }: { data: DataSourceHealthView[]; highlightedSource?: string; onViewAffectedItems: (sourceName: string) => void }) {
   if (!data.length) return <EmptyState text="No data sources were supplied." />
-  return <div className="overflow-x-auto"><table className="w-full min-w-[780px] border-collapse text-left text-xs"><caption className="sr-only">Data source health</caption><thead className="border-b border-border bg-surface-subtle text-[10px] uppercase tracking-wider text-muted"><tr><th className="px-3 py-3 font-bold">Source name</th><th className="px-3 py-3 font-bold">Last successful update</th><th className="px-3 py-3 font-bold">Freshness</th><th className="px-3 py-3 font-bold">Affected count</th><th className="px-3 py-3 font-bold">Latest error</th><th className="px-3 py-3 font-bold">Action</th></tr></thead><tbody>{data.map((source) => <tr key={source.name} className={`border-b border-border align-top ${highlightedSource === source.name ? 'bg-primary-subtle/40' : ''}`}><td className="px-3 py-3 font-bold text-ink">{source.name}</td><td className="px-3 py-3 text-muted">{formatDate(source.lastSuccessfulUpdate)}</td><td className="px-3 py-3"><FreshnessBadge state={source.freshnessState} /></td><td className="px-3 py-3 font-mono text-ink">{source.affectedCount}</td><td className="max-w-xs px-3 py-3 text-muted">{source.latestError ?? 'No latest error supplied'}</td><td className="px-3 py-3"><Button type="button" variant="quiet" size="sm" disabled={source.affectedCount === 0} onClick={() => onViewAffectedItems(source.name)}><ArrowSquareOut aria-hidden="true" size={14} /> View affected items</Button></td></tr>)}</tbody></table></div>
+  return <div className="overflow-x-auto"><table className="w-full min-w-[780px] border-collapse text-left text-xs"><caption className="sr-only">Data source health</caption><thead className="border-b border-border bg-surface-subtle text-[10px] uppercase tracking-wider text-muted"><tr><th className="px-3 py-3 font-bold">Source name</th><th className="px-3 py-3 font-bold">Last successful update</th><th className="px-3 py-3 font-bold">Freshness</th><th className="px-3 py-3 font-bold">Affected count</th><th className="px-3 py-3 font-bold">Latest error</th><th className="px-3 py-3 font-bold">Action</th></tr></thead><tbody>{data.map((source) => <tr key={source.name} className={`border-b border-border align-top ${highlightedSource === source.name ? 'bg-primary-subtle/40' : ''}`}><td className="px-3 py-3 font-bold text-ink">{source.name}</td><td className="px-3 py-3 text-muted">{formatDate(source.lastSuccessfulUpdate)}</td><td className="px-3 py-3"><FreshnessBadge state={source.freshnessState} /></td><td className="px-3 py-3 font-mono text-ink">{source.affectedCount ?? 'Not supplied'}</td><td className="max-w-xs px-3 py-3 text-muted">{source.latestError ?? 'Not supplied'}</td><td className="px-3 py-3"><Button type="button" variant="quiet" size="sm" disabled={source.affectedCount === null || source.affectedCount === 0} onClick={() => onViewAffectedItems(source.name)}><ArrowSquareOut aria-hidden="true" size={14} /> View affected items</Button></td></tr>)}</tbody></table></div>
 }
 
 function LeverDefinition({ lever, onExplainApprovalOwner, onClose }: { lever: PolicyLeverView; onExplainApprovalOwner: (approvalOwner: string | null) => void; onClose: () => void }) {

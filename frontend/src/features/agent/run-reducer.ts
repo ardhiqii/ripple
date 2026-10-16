@@ -40,12 +40,12 @@ function emptyRunState(): RunState {
 
 export const initialRunState: RunState = emptyRunState()
 
-export function createRunState(runId: string, eventId: string): RunState {
+export function createRunState(runId: string, eventId: string, lastSeq = 0): RunState {
   return {
     runId,
     eventId,
     status: 'queued',
-    lastSeq: 0,
+    lastSeq,
     events: [],
     error: null,
   }

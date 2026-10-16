@@ -1,10 +1,10 @@
 import { ArrowSquareOut, CalendarBlank, CheckCircle, ClipboardText, Copy, GitBranch, LockKey } from '@phosphor-icons/react'
 
 import { Badge, Button, Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui'
-import type { HistoryAuditDetail } from '@/features/history/history-data'
+import { actionLabel, humanizeHistoryLabel, type HistoryAuditDetail } from '@/features/history/history-data'
 
-export type HistoryTimelineTarget = Readonly<{ decisionId: string; from: string; to: string }>
-export type HistoryWorkspaceTarget = Readonly<{ decisionId: string; planId: string; mode: 'audit' }>
+export type HistoryTimelineTarget = Readonly<{ decisionId: string; from: string; to: string; jobId?: string }>
+export type HistoryWorkspaceTarget = Readonly<{ decisionId: string; planId: string; runId?: string; mode: 'audit' }>
 export type HistorySimilarChangeTarget = Readonly<{ decisionId: string; planId: string; eventId?: string; context: string }>
 export type HistoryCopyTarget = Readonly<{ decisionId: string; url: string }>
 
@@ -27,20 +27,27 @@ export function AuditDetailSheet({ detail, onOpenChange, onOpenTimeline, onOpenS
         <SheetHeader className="border-b border-border pb-4 pr-8">
           <div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-wider text-primary">Decision history</span><Badge variant="default"><LockKey aria-hidden="true" size={13} />Immutable record</Badge></div>
           <SheetTitle>{decision.summary}</SheetTitle>
-          <SheetDescription>{decision.id} · recorded {decision.dateLabel} · no edit operations are available.</SheetDescription>
+          <SheetDescription>{decision.eventCause ?? decision.reason ?? 'No cause summary supplied by the server.'} · recorded {decision.dateLabel} · no edit operations are available.</SheetDescription>
         </SheetHeader>
 
         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-          <Info label="Action" value={decision.action} />
+          <Info label="Action" value={actionLabel(decision.action)} />
           <Info label="Actor" value={decision.actor} />
-          <Info label="Plan" value={decision.planId} />
+          <Info label="Event type" value={decision.eventNature ? humanizeHistoryLabel(decision.eventNature) : 'Unavailable'} />
           <Info label="Conditions" value={String(decision.acknowledgedConditionIds.length)} />
         </div>
 
+        <section className="grid gap-2 rounded-sm border border-border bg-surface-subtle p-3 text-xs" aria-label="Immutable audit identifiers">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><strong className="text-ink">Audit context</strong><span className="text-muted">Decision {decision.id}</span></div>
+          <p className="m-0 leading-5 text-muted">{decision.eventCause ?? decision.reason ?? 'The server did not provide a cause summary for this record.'}</p>
+          <div className="grid gap-1 text-[11px] text-muted sm:grid-cols-2"><span>Plan: <code className="font-mono text-ink">{decision.planId}</code> · version {decision.planVersion ?? '—'}</span><span>Jobs: <span className="text-ink">{decision.jobs.length ? decision.jobs.join(', ') : 'None linked'}</span></span><span>Resources: <span className="text-ink">{decision.resources.length ? decision.resources.join(', ') : 'Not included in decision response'}</span></span><span>Schedule: <span className="text-ink">v{decision.scheduleVersionBefore ?? '—'} → v{decision.scheduleVersionAfter ?? '—'}</span></span></div>
+        </section>
+
         <div className="flex flex-wrap gap-2" aria-label="Audit links">
-          <Button type="button" size="sm" variant="secondary" onClick={() => onOpenTimeline({ decisionId: decision.id, from: date, to: date })}><CalendarBlank aria-hidden="true" size={15} />Open Timeline</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => onOpenTimeline({ decisionId: decision.id, from: date, to: date, ...(decision.jobs[0] ? { jobId: decision.jobs[0] } : {}) })}><CalendarBlank aria-hidden="true" size={15} />Open Timeline</Button>
           {decision.eventId ? <Button type="button" size="sm" variant="secondary" onClick={() => onOpenSourceEvent(decision.eventId!)}><ArrowSquareOut aria-hidden="true" size={15} />Source event</Button> : null}
-          <Button type="button" size="sm" variant="secondary" onClick={() => onOpenDecisionWorkspace({ decisionId: decision.id, planId: decision.planId, mode: 'audit' })}><ClipboardText aria-hidden="true" size={15} />Decision Workspace</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => onOpenDecisionWorkspace({ decisionId: decision.id, planId: decision.planId, ...(decision.runId ? { runId: decision.runId } : {}), mode: 'audit' })}><ClipboardText aria-hidden="true" size={15} />Open plan audit</Button>
+          {decision.runId ? <Button type="button" size="sm" variant="secondary" onClick={() => onOpenDecisionWorkspace({ decisionId: decision.id, planId: decision.planId, runId: decision.runId, mode: 'audit' })}><ArrowSquareOut aria-hidden="true" size={15} />Investigation run</Button> : null}
           <Button type="button" size="sm" variant="secondary" onClick={() => onCopyStableLink({ decisionId: decision.id, url: decision.stableLink })}><Copy aria-hidden="true" size={15} />Copy stable link</Button>
           <Button type="button" size="sm" variant="primary" onClick={() => onStartSimilarChange({ decisionId: decision.id, planId: decision.planId, ...(decision.eventId ? { eventId: decision.eventId } : {}), context: decision.summary })}><GitBranch aria-hidden="true" size={15} />Start similar change</Button>
         </div>

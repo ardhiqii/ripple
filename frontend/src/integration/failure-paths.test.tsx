@@ -221,8 +221,8 @@ describe('INT-06 failure-path integration', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Reset all demo data' }))
-    await user.click(screen.getAllByRole('button', { name: 'Reset all demo data' }).at(-1)!)
+    await user.click(screen.getByRole('button', { name: 'Reset selected scenario' }))
+    await user.click(screen.getAllByRole('button', { name: 'Reset selected scenario' }).at(-1)!)
     await waitFor(() => expect(onReset).toHaveBeenCalledOnce())
 
     const resetRequest = onReset.mock.results[0]?.value

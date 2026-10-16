@@ -2,6 +2,10 @@
 
 Task: `INT-09`
 
+Current phase (2026-10-16): Only the local/preview **configuration code** in INT-18 is development scope. Do not deploy, run public smoke tests, reset a shared database, or open the user's browser during the development-first goal. Sections 2–7 are a later operator/QA runbook, not required evidence for `development complete / QA pending`. Preserve existing preview accounts and data.
+
+Status note (2026-10-16): the checked-in `start_preview.sh` runs migrations, then invokes `--scenario A-12-base --install-if-missing` and `--scenario fleet-scale --install-if-missing`; `render.yaml` uses `RIPPLE_ENVIRONMENT=preview` so both synthetic scenarios are eligible in the preview profile. The checked-in configuration is not proof that the current public deployment runs this build. Editing checked-in configuration is not authorization to deploy or mutate Render/Supabase/Vercel.
+
 This setup gives Ripple two explicit runtime profiles without changing the product API contract.
 
 | Concern | Local | Shareable preview | Intended GCP target |
@@ -12,6 +16,27 @@ This setup gives Ripple two explicit runtime profiles without changing the produ
 | API routing | Vite proxies `/api` | `VITE_API_BASE_URL` selects the API origin | Hosting rewrite or API origin |
 
 The frontend always uses `/api/v1` paths. Only the origin changes. The backend remains the same Docker image and accepts PostgreSQL URLs through environment variables, so the preview profile does not create a second application architecture.
+
+### Optional local/preview Gemini Developer extraction
+
+Synthetic extraction remains the default. To opt in explicitly for a local or preview backend, set these non-secret names in the ignored local environment or the preview secret configuration:
+
+```text
+RIPPLE_MODEL_PROVIDER=gemini_developer
+RIPPLE_INTAKE_MODEL=gemini-2.5-flash
+RIPPLE_GEMINI_API_KEY=replace-with-secret-value
+```
+
+The key is backend-only and is never placed in `VITE_*`, browser storage, URLs, logs, seed data, or this repository. Extraction creates a model request only after a user starts extraction. A provider, credential, quota, or model-access failure is returned as an honest extraction error; it does not fall back to synthetic data. Staging and production use the existing `vertex` provider path.
+
+For staging or production, select Vertex explicitly with secret-free settings such as:
+
+```text
+RIPPLE_MODEL_PROVIDER=vertex
+RIPPLE_INTAKE_MODEL=replace-with-approved-vertex-model
+RIPPLE_VERTEX_PROJECT=replace-with-gcp-project
+RIPPLE_VERTEX_LOCATION=us-central1
+```
 
 ## 1. Local profile
 
@@ -41,7 +66,7 @@ Open `http://localhost:5173`. Browser requests stay on the Vite origin and are p
 3. Replace its password placeholder, then store the complete value only as Render's `RIPPLE_DATABASE_URL` secret. The backend accepts `postgres://`, `postgresql://`, and `sslmode=require` and normalizes them for `asyncpg`.
 4. Do not add Supabase browser keys to Vercel. The frontend does not access Supabase directly.
 
-The Render startup command runs `alembic upgrade head` and installs the idempotent synthetic demo seed before starting Uvicorn. This is intentionally limited to the single-instance preview profile. Production migration and seed orchestration must be separated before horizontal scaling.
+The Render startup command runs `alembic upgrade head`, then calls the seed CLI for each explicit synthetic scenario with `--install-if-missing` before starting Uvicorn. It verifies a newly installed graph but reports `skipped_existing` for an edited scenario without resetting it or requiring its baseline checksum. Operators use the separate strict `--verify` command when they intentionally want to compare against baseline. This is intentionally limited to the single-instance preview profile. Production migration and seed orchestration must be separated before horizontal scaling.
 
 ## 3. Create the API preview in Render
 
@@ -56,7 +81,7 @@ The Render startup command runs `alembic upgrade head` and installs the idempote
 
 5. Deploy and verify `https://YOUR_RENDER_SERVICE.onrender.com/api/v1/health/ready` returns a successful response.
 
-`render.yaml` keeps one worker, a small database pool, an external health check, and the recorded/mock model mode suitable for a demo preview.
+`render.yaml` keeps one worker, a small database pool, an external health check, `RIPPLE_ENVIRONMENT=preview`, and the synthetic provider default suitable for a demo preview. Do not treat a local config diff as an applied cloud change.
 
 ## 4. Create the frontend preview in Vercel
 

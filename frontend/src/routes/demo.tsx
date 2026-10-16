@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { createRun } from '@/api/agent-runs'
+import { apiTransport } from '@/api/transport'
 import { DemoLab } from '@/components/demo/demo-lab'
 import { toast } from '@/components/ui'
 import { useRunRegistry } from '@/features/agent/run-registry'
-import { createDemoEvent, useDemoReset, useDemoScenarios } from '@/features/demo/demo-api'
-import { a12ComparisonFixture, DEMO_SCENARIO_IDS, demoScenarioFixtures, findDemoScenario, type DemoMode, type DemoScenarioId, type DemoScenarioMetadata } from '@/features/demo/demo-data'
+import { createDemoEventAndStartExtraction, useDemoReset, useDemoScenarios } from '@/features/demo/demo-api'
+import { a12ComparisonFixture, DEMO_SCENARIO_IDS, type DemoMode, type DemoResetReceipt, type DemoScenarioId } from '@/features/demo/demo-data'
 import { recordedDemoFixtures } from '@/features/demo/demo-recorded'
 import { clearDemoLocalState } from '@/features/demo/demo-state'
 import { demoSearchSchema } from './search-schemas'
@@ -26,30 +26,27 @@ function DemoRoute() {
   const resetMutation = useDemoReset()
   const [runPending, setRunPending] = useState<'live' | 'recorded' | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
-  const selectedId = findDemoScenario(search.scenario ?? '')?.id ?? DEMO_SCENARIO_IDS.base
-  const selected = findDemoScenario(selectedId) ?? findDemoScenario(DEMO_SCENARIO_IDS.base)!
+  const [lastResetReceipt, setLastResetReceipt] = useState<DemoResetReceipt | null>(null)
   const scenarios = useMemo(() => {
-    const values = new Map<DemoScenarioId, DemoScenarioMetadata>(demoScenarioFixtures.map((scenario) => [scenario.id, scenario]))
-    for (const scenario of scenariosQuery.data ?? []) values.set(scenario.id, scenario)
-    return [...values.values()]
+    return (scenariosQuery.data ?? []).filter((scenario) => scenario.available)
   }, [scenariosQuery.data])
-  const mode: DemoMode = search.mode === 'live' || search.mode === 'recorded' || search.mode === 'full' ? search.mode : scenariosQuery.data?.[0]?.mode ?? 'recorded'
-  const recordedFixture = mode === 'recorded' || mode === 'full' ? recordedDemoFixtures[selected.id] : undefined
+  const selected = scenarios.find((scenario) => scenario.id === search.scenario) ?? scenarios[0]
+  const selectedId = selected?.id ?? DEMO_SCENARIO_IDS.base
+  const mode: DemoMode = selected?.mode ?? 'recorded'
+  const recordedFixture = selected && (mode === 'recorded' || mode === 'full') ? recordedDemoFixtures[selected.id] : undefined
   const error = runError ?? (scenariosQuery.isError ? scenariosQuery.error instanceof Error ? scenariosQuery.error.message : 'Demo metadata could not be loaded.' : null)
 
   const updateSearch = (patch: { scenario?: string; mode?: string; step?: string }) => navigate({ search: (previous) => ({ ...previous, ...patch }) })
 
   const runScenario = async (scenarioId: DemoScenarioId) => {
-    const scenario = findDemoScenario(scenarioId)
-    if (!scenario) return
+    const scenario = scenarios.find((item) => item.id === scenarioId)
+    if (!scenario || (scenario.mode !== 'live' && scenario.mode !== 'full')) return
     setRunError(null)
     setRunPending('live')
     try {
-      const eventId = await createDemoEvent(scenario.message)
-      const run = await createRun(eventId, `demo-${scenarioId}-${Date.now()}`)
-      registry.registerRun({ runId: run.runId, eventId: run.eventId, status: 'queued', startedAt: new Date().toISOString() })
+      const eventId = await createDemoEventAndStartExtraction(scenario.message, scenario.backendScenarioId)
       updateSearch({ scenario: scenarioId, mode: 'live', step: 'running' })
-      toast.success('Scenario started', { description: 'The production Change Inbox and run trace are ready.' })
+      toast.success('Scenario event created', { description: 'Extraction started. Review the server extraction before investigation.' })
       navigate({ to: '/changes/$eventId', params: { eventId } })
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Scenario could not start.'
@@ -67,14 +64,27 @@ function DemoRoute() {
   }
 
   const resetDemo = async () => {
+    if (!selected?.resetAllowed) return
     setRunError(null)
-    const receipt = await resetMutation.mutateAsync(selected.backendScenarioId)
-    queryClient.clear()
-    clearDemoLocalState({ local: window.localStorage, session: window.sessionStorage })
-    registry.clearRuns()
-    toast.success('Demo reset complete', { description: `${receipt.seedVersion} · schedule v${receipt.scheduleVersion}` })
-    navigate({ to: '/demo', search: { scenario: selected.id, mode: 'recorded' } })
+    try {
+      const receipt = await resetMutation.mutateAsync(selected.backendScenarioId)
+      queryClient.removeQueries({ predicate: ({ queryKey }) => Array.isArray(queryKey) && queryKey[0] === 'scenario' && queryKey[1] === selected.backendScenarioId })
+      clearDemoLocalState({ local: window.localStorage, session: window.sessionStorage }, selected.backendScenarioId)
+      for (const run of registry.activeRuns) if (run.scenarioId === selected.backendScenarioId) registry.removeRun(run.runId)
+      await queryClient.invalidateQueries({ queryKey: apiTransport.queryKey('demo', 'scenarios') })
+      await scenariosQuery.refetch()
+      setLastResetReceipt(receipt)
+      toast.success('Demo reset complete', { description: `${selected.name} · ${receipt.seedVersion} · schedule v${receipt.scheduleVersion}` })
+      navigate({ to: '/demo', search: { scenario: selected.id, mode: 'recorded' } })
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Demo reset could not be completed.'
+      setRunError(message)
+      toast.error('Demo reset failed', { description: message })
+      throw caught
+    }
   }
 
-  return <DemoLab scenarios={scenarios} selectedScenarioId={selected.id} mode={mode} comparison={a12ComparisonFixture} recordedFixture={recordedFixture} runPending={runPending} resetPending={resetMutation.isPending} error={error} onSelectScenario={(scenarioId) => updateSearch({ scenario: scenarioId })} onRunScenario={(scenarioId) => void runScenario(scenarioId)} onRunRecorded={runRecorded} onComparePair={() => updateSearch({ scenario: DEMO_SCENARIO_IDS.base, mode: 'recorded', step: 'compare' })} onReset={resetDemo} onRetry={() => void scenariosQuery.refetch()} />
+  if (!selected) return <DemoLab scenarios={[]} selectedScenarioId={selectedId} mode={mode} comparison={a12ComparisonFixture} runPending={runPending} resetPending={resetMutation.isPending} error={error ?? 'No backend-available demo scenarios were advertised.'} onSelectScenario={() => undefined} onRunScenario={() => undefined} onRunRecorded={() => undefined} onComparePair={() => undefined} onReset={resetDemo} onRetry={() => void scenariosQuery.refetch()} />
+
+  return <DemoLab scenarios={scenarios} selectedScenarioId={selected.id} mode={mode} comparison={a12ComparisonFixture} recordedFixture={recordedFixture} runPending={runPending} resetPending={resetMutation.isPending} lastResetReceipt={lastResetReceipt?.scenarioId === selected.backendScenarioId ? lastResetReceipt : undefined} error={error} onSelectScenario={(scenarioId) => updateSearch({ scenario: scenarioId })} onRunScenario={(scenarioId) => void runScenario(scenarioId)} onRunRecorded={runRecorded} onComparePair={() => updateSearch({ scenario: DEMO_SCENARIO_IDS.base, mode: 'recorded', step: 'compare' })} onReset={resetDemo} onRetry={() => void scenariosQuery.refetch()} />
 }

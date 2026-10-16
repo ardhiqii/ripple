@@ -6,7 +6,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from app.persistence.database import normalize_database_url
-from app.persistence.models import Base
+from app.persistence.models import Base, ScheduleState
 from app.persistence.uow import SqlAlchemyUnitOfWork
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ EXPECTED_TABLES = {
     "schedule_state",
     "jobs",
     "resources",
+    "resource_unavailability",
     "bookings",
     "readiness_items",
     "cargo_items",
@@ -47,7 +48,8 @@ def test_required_unique_constraints_and_indexes_are_declared() -> None:
     jobs = Base.metadata.tables["jobs"]
 
     assert {constraint.name for constraint in resources.constraints} >= {
-        "uq_resources_scenario_name"
+        "uq_resources_scenario_name",
+        "uq_resources_id_scenario",
     }
     assert [column.name for column in weather.primary_key.columns] == [
         "scenario_id",
@@ -68,16 +70,32 @@ def test_required_unique_constraints_and_indexes_are_declared() -> None:
     }
 
 
-def test_schedule_and_booking_invariants_are_database_constraints() -> None:
+def test_schedule_state_is_scenario_keyed_with_a_generated_surrogate_id() -> None:
     schedule_state = Base.metadata.tables["schedule_state"]
     bookings = Base.metadata.tables["bookings"]
 
     schedule_checks = {constraint.name for constraint in schedule_state.constraints}
     booking_checks = {constraint.name for constraint in bookings.constraints}
 
-    assert "ck_schedule_state_singleton_id" in schedule_checks
+    assert "ck_schedule_state_singleton_id" not in schedule_checks
+    assert [column.name for column in schedule_state.primary_key.columns] == ["id"]
+    assert schedule_state.columns.scenario_id.unique is True
+    assert schedule_state.columns.id.default is not None
+    assert "schedule_state_id_seq" in str(schedule_state.columns.id.default)
+    assert ScheduleState.__table__.columns.id.autoincrement is True
     assert "ck_bookings_day_range" in booking_checks
     assert "ck_bookings_one_owner" in booking_checks
+
+    unavailability = Base.metadata.tables["resource_unavailability"]
+    assert {constraint.name for constraint in unavailability.constraints} >= {
+        "ck_resource_unavailability_day_range",
+        "ck_resource_unavailability_kind",
+        "fk_resource_unavailability_resource_scenario",
+    }
+    assert {index.name for index in unavailability.indexes} >= {
+        "ix_resource_unavailability_scenario_range",
+        "ix_resource_unavailability_resource_range",
+    }
 
 
 def test_database_url_normalization() -> None:
@@ -142,4 +160,28 @@ def test_initial_migration_renders_all_tables_and_indexes(
     assert "CREATE TABLE idempotency_keys" in sql
     assert "CREATE INDEX ix_jobs_scenario_start_day" in sql
     assert "CONSTRAINT uq_resources_scenario_name UNIQUE" in sql
+    assert "CREATE TABLE resource_unavailability" in sql
+    assert "CONSTRAINT fk_resource_unavailability_resource_scenario" in sql
     assert "INSERT INTO alembic_version" in sql
+
+
+def test_scenario_state_migration_renders_safe_sequence_and_rollback_guard(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = Config(str(Path(__file__).parents[2] / "alembic.ini"))
+
+    command.upgrade(config, "head", sql=True)
+    sql = capsys.readouterr().out
+
+    assert "CREATE SEQUENCE schedule_state_id_seq" in sql
+    assert "DROP CONSTRAINT ck_schedule_state_singleton_id" in sql
+    assert "OWNED BY schedule_state.id" in sql
+
+    command.downgrade(
+        config,
+        "0002_scenario_schedule_state:0001_initial_schema",
+        sql=True,
+    )
+    rollback_sql = capsys.readouterr().out
+    assert "cannot downgrade schedule_state: multiple scenarios exist" in rollback_sql
+    assert "cannot downgrade schedule_state: generated scenario row is not id=1" in rollback_sql

@@ -47,6 +47,8 @@ const vendorByTone: Record<TimelineTone, string> = {
   gray: 'No vendor',
 }
 
+const fixtureResourceIds = new Set(timelineResources.map((resource) => resource.id))
+
 export function vendorForTone(tone: TimelineTone) {
   return vendorByTone[tone]
 }
@@ -56,26 +58,42 @@ export interface ScheduleFilter {
   vendors?: string[]
   status?: string
   query?: string
+  selectedJobId?: string
 }
 
 export function getVisibleResources(resources: TimelineResource[], filter: ScheduleFilter) {
   const query = filter.query?.trim().toLowerCase()
   return resources.filter((resource) => {
+    const selectedMatch = Boolean(filter.selectedJobId && resource.jobs.some((job) => job.id === filter.selectedJobId))
     const groupMatch = !filter.groups?.length || filter.groups.includes(resource.group)
-    const jobs = resource.jobs
-    const vendorMatch = !filter.vendors?.length || jobs.some((job) => filter.vendors?.includes(vendorForTone(job.tone)))
-    const statusMatch = !filter.status || jobs.some((job) => (job.status ?? 'planned') === filter.status)
-    const text = `${resource.name} ${resource.code} ${resource.location} ${jobs.map((job) => `${job.id} ${job.label}`).join(' ')}`.toLowerCase()
-    return groupMatch && vendorMatch && statusMatch && (!query || text.includes(query))
+    const filteredJobs = getVisibleJobs(resource, { vendors: filter.vendors, status: filter.status })
+    const resourceText = `${resource.name} ${resource.code} ${resource.location}`.toLowerCase()
+    const resourceMatches = Boolean(query && resourceText.includes(query))
+    const jobMatches = Boolean(query && filteredJobs.some((job) => `${job.id} ${job.label}`.toLowerCase().includes(query)))
+    const hasBlockFilters = Boolean((isFixtureResource(resource) && filter.vendors?.length) || filter.status)
+    const hasMatchingBlock = filteredJobs.length > 0
+    const queryMatches = !query || resourceMatches || jobMatches
+    // A resource may remain when its own name/code/location matches even if
+    // vendor/status filters hide every block. Job matches must satisfy those
+    // block filters so hidden jobs cannot keep an unrelated resource visible.
+    const blocksMatch = !hasBlockFilters || hasMatchingBlock
+    return selectedMatch || (groupMatch && queryMatches && (resourceMatches || blocksMatch))
   })
 }
 
-export function getVisibleJobs(resource: TimelineResource, filter: Pick<ScheduleFilter, 'vendors' | 'status'>) {
+export function getVisibleJobs(resource: TimelineResource, filter: Pick<ScheduleFilter, 'vendors' | 'status' | 'selectedJobId'>) {
   return resource.jobs.filter((job) => {
-    const vendorMatch = !filter.vendors?.length || filter.vendors.includes(vendorForTone(job.tone))
+    if (job.id === filter.selectedJobId) return true
+    // Vendor colors and filters remain available only for the explicitly
+    // curated static fixture. Live /schedule resources have no vendor field.
+    const vendorMatch = !isFixtureResource(resource) || !filter.vendors?.length || filter.vendors.includes(vendorForTone(job.tone))
     const statusMatch = !filter.status || (job.status ?? 'planned') === filter.status
     return vendorMatch && statusMatch
   })
+}
+
+function isFixtureResource(resource: TimelineResource) {
+  return fixtureResourceIds.has(resource.id)
 }
 
 export function findJob(resources: TimelineResource[], jobId: string | undefined) {
@@ -87,8 +105,8 @@ export function findJob(resources: TimelineResource[], jobId: string | undefined
   return undefined
 }
 
-export function getDaysInRange(range: TimelineRange) {
-  const from = Math.max(0, Math.min(range.from, timelineDays.length - 1))
-  const to = Math.max(from, Math.min(range.to, timelineDays.length - 1))
-  return timelineDays.slice(from, to + 1)
+export function getDaysInRange(range: TimelineRange, days: TimelineDay[] = timelineDays) {
+  const from = Math.max(0, Math.min(range.from, days.length - 1))
+  const to = Math.max(from, Math.min(range.to, days.length - 1))
+  return days.slice(from, to + 1)
 }

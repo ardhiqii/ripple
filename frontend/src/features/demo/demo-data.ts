@@ -9,7 +9,7 @@ export const DEMO_SCENARIO_IDS = {
   constrained: 'A-12-constrained-pair',
 } as const
 
-export type DemoScenarioId = (typeof DEMO_SCENARIO_IDS)[keyof typeof DEMO_SCENARIO_IDS]
+export type DemoScenarioId = string
 export type DemoScenarioVariant = 'base' | 'constrained'
 export type DemoMode = 'live' | 'recorded' | 'full'
 
@@ -31,6 +31,8 @@ export interface DemoScenarioMetadata {
   mode: DemoMode
   seedVersion: string
   seedChecksum: string | null
+  scenarioStartDate: string | null
+  resetAllowed: boolean
   eventId: string
   recordedRunId: string
   preview: DemoScenarioPreview
@@ -50,6 +52,8 @@ export const a12ScenarioFixtures = {
     mode: 'recorded',
     seedVersion: 'offshore-a12-v1',
     seedChecksum: null,
+    scenarioStartDate: '2026-10-13',
+    resetAllowed: true,
     eventId: '11111111-1111-4111-8111-111111111111',
     recordedRunId: '11111111-1111-4111-8111-111111111101',
     preview: {
@@ -75,6 +79,8 @@ export const a12ScenarioFixtures = {
     mode: 'recorded',
     seedVersion: 'offshore-a12-v1',
     seedChecksum: null,
+    scenarioStartDate: '2026-10-13',
+    resetAllowed: true,
     eventId: '22222222-2222-4222-8222-222222222222',
     recordedRunId: '22222222-2222-4222-8222-222222222202',
     preview: {
@@ -102,18 +108,31 @@ export function adaptDemoScenario(response: DemoScenarioResponse): DemoScenarioM
   if (!scenarioId) return undefined
 
   const fixture = findDemoScenario(scenarioId)
-    ?? (scenarioId === 'A-12-base' ? a12ScenarioFixtures[DEMO_SCENARIO_IDS.base] : undefined)
-  if (!fixture) return undefined
+  const name = stringValue(response.name) ?? fixture?.name ?? scenarioId
+  const description = stringValue(response.description) ?? fixture?.description ?? 'Backend-advertised synthetic scenario.'
+  const preview = fixture?.preview ?? {
+    learningGoal: description,
+    source: `Backend scenario metadata for ${scenarioId}.`,
+    expectedPath: ['Create a server event from the synthetic request.', 'Wait for validated extraction.', 'Review the server-backed investigation path.'],
+    resetImpact: `Reset affects only ${name} and restores its advertised seed.`,
+  }
 
   return {
-    ...fixture,
+    id: scenarioId,
     backendScenarioId: scenarioId,
-    name: stringValue(response.name) ?? fixture.name,
-    description: stringValue(response.description) ?? fixture.description,
-    available: booleanValue(response.available, fixture.available),
-    mode: modeValue(response.mode, fixture.mode),
-    seedVersion: stringValue(response.seed_version) ?? fixture.seedVersion,
-    seedChecksum: stringValue(response.seed_checksum) ?? fixture.seedChecksum,
+    variant: fixture?.variant ?? 'base',
+    name,
+    description,
+    message: fixture?.message ?? `Review the current schedule for the ${name} synthetic scenario and identify the next readiness-constrained operation.`,
+    available: booleanValue(response.available, fixture?.available ?? false),
+    mode: modeValue(response.mode, fixture?.mode ?? 'live'),
+    seedVersion: stringValue(response.seed_version) ?? fixture?.seedVersion ?? 'not supplied',
+    seedChecksum: stringValue(response.seed_checksum) ?? fixture?.seedChecksum ?? null,
+    scenarioStartDate: stringValue(response.scenario_start_date) ?? fixture?.scenarioStartDate ?? null,
+    resetAllowed: booleanValue(response.reset_allowed, fixture?.resetAllowed ?? false),
+    eventId: fixture?.eventId ?? '',
+    recordedRunId: fixture?.recordedRunId ?? '',
+    preview,
   }
 }
 
@@ -121,7 +140,7 @@ export function adaptDemoScenarios(response: DemoScenariosResponse): DemoScenari
   const values = arrayValue(response.scenarios)
   return values
     .map((value) => adaptDemoScenario(value as DemoScenarioResponse))
-    .filter((scenario): scenario is DemoScenarioMetadata => scenario !== undefined)
+    .filter((scenario): scenario is DemoScenarioMetadata => scenario !== undefined && scenario.available)
 }
 
 export interface DemoResetReceipt {

@@ -19,7 +19,7 @@ describe('toPolicyWorkspaceData', () => {
       dataHealth: {
         as_of: '2026-10-13T10:00:00Z',
         stale_after_hours: 48,
-        sources: [{ source_type: 'vendor_update', item_count: 3, latest_updated_at: '2026-10-13T09:00:00Z', stale_count: 1, status: 'stale', latest_error: 'API timeout' }],
+        sources: [{ source_type: 'vendor_update', item_count: 3, latest_updated_at: '2026-10-13T09:00:00Z', stale_count: 1, status: 'stale' }],
       },
     }
 
@@ -30,19 +30,31 @@ describe('toPolicyWorkspaceData', () => {
       ],
       profiles: [{ name: 'balanced', delayWeight: '1', leverCostWeight: '2', movementWeight: '3', riskWeight: '4', isDefault: true }],
       freshnessPolicy: { asOf: '2026-10-13T10:00:00Z', staleAfterHours: 48 },
-      sources: [{ name: 'vendor_update', lastSuccessfulUpdate: '2026-10-13T09:00:00Z', freshnessState: 'stale', affectedCount: 3, latestError: 'API timeout', staleCount: 1 }],
+      sources: [{ name: 'vendor_update', lastSuccessfulUpdate: '2026-10-13T09:00:00Z', freshnessState: 'stale', affectedCount: 3, latestError: null, staleCount: 1 }],
     })
   })
 
   it('normalizes absent optional health values to explicit read-only states', () => {
-    const data: PolicyApiData = {
+    const data = {
       levers: { levers: [] },
       profiles: { default_profile: 'balanced', profiles: [] },
       dataHealth: { as_of: 'not-a-date', stale_after_hours: undefined, sources: [{ source_type: 'unknown', item_count: undefined, latest_updated_at: null, stale_count: undefined, status: 'degraded' }] },
-    }
+    } as unknown as PolicyApiData
 
     const mapped = toPolicyWorkspaceData(data)
     expect(mapped.freshnessPolicy.staleAfterHours).toBeNull()
-    expect(mapped.sources[0]).toMatchObject({ freshnessState: 'unknown', affectedCount: 0, latestError: null, lastSuccessfulUpdate: null })
+    expect(mapped.sources[0]).toMatchObject({ freshnessState: 'unknown', affectedCount: null, latestError: null, lastSuccessfulUpdate: null })
+  })
+
+  it('does not turn missing policy identities into synthetic action or profile names', () => {
+    const mapped = toPolicyWorkspaceData({
+      levers: { levers: [{ allowed: true, approval: null, cost_weight: null }] },
+      profiles: { default_profile: null, profiles: [{ delay_weight: null, lever_cost_weight: null, movement_weight: null, risk_weight: null }] },
+      dataHealth: { as_of: null, stale_after_hours: null, sources: [{}] },
+    } as unknown as PolicyApiData)
+
+    expect(mapped.levers[0]).toMatchObject({ name: 'Not supplied', costWeight: 'Not supplied' })
+    expect(mapped.profiles[0]).toMatchObject({ name: 'Not supplied', delayWeight: 'Not supplied' })
+    expect(mapped.sources[0]).toMatchObject({ name: 'Not supplied', affectedCount: null })
   })
 })

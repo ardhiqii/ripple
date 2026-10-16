@@ -67,9 +67,9 @@ describe('plan mutation client', () => {
     expect(JSON.parse(String((fetcher.mock.calls[2]?.[1] as RequestInit).body))).toEqual({
       context: 'Keep the test bay reserved.',
     })
-    expect((fetcher.mock.calls[0]?.[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': 'approve-key' })
-    expect((fetcher.mock.calls[1]?.[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': 'reject-key' })
-    expect((fetcher.mock.calls[2]?.[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': 'reply-key' })
+    expect(new Headers((fetcher.mock.calls[0]?.[1] as RequestInit).headers).get('Idempotency-Key')).toBe('approve-key')
+    expect(new Headers((fetcher.mock.calls[1]?.[1] as RequestInit).headers).get('Idempotency-Key')).toBe('reject-key')
+    expect(new Headers((fetcher.mock.calls[2]?.[1] as RequestInit).headers).get('Idempotency-Key')).toBe('reply-key')
   })
 
   it('requires every condition supplied by the review state before approving', async () => {
@@ -97,7 +97,7 @@ describe('plan mutation client', () => {
     const second = client.approve(input)
     expect(fetcher).toHaveBeenCalledTimes(1)
     expect(first).toBe(second)
-    expect((fetcher.mock.calls[0]?.[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': 'single-flight-key' })
+    expect(new Headers((fetcher.mock.calls[0]?.[1] as RequestInit).headers).get('Idempotency-Key')).toBe('single-flight-key')
 
     resolveRequest(new Response(JSON.stringify(approvalResponse), { status: 200 }))
     await expect(first).resolves.toEqual(approvalResponse)
@@ -132,13 +132,13 @@ describe('plan mutation client', () => {
 
     expect(invalidateQueries).toHaveBeenCalledTimes(7)
     expect(invalidateQueries.mock.calls.map(([filters]) => filters.queryKey)).toEqual([
-      ['schedule'],
-      ['readiness'],
-      ['events'],
-      ['decisions'],
-      ['alerts'],
-      ['jobs'],
-      ['plans', planId],
+      ['scenario', 'A-12-base', 'schedule'],
+      ['scenario', 'A-12-base', 'readiness'],
+      ['scenario', 'A-12-base', 'events'],
+      ['scenario', 'A-12-base', 'decisions'],
+      ['scenario', 'A-12-base', 'alerts'],
+      ['scenario', 'A-12-base', 'jobs'],
+      ['scenario', 'A-12-base', 'plans', planId],
     ])
   })
 

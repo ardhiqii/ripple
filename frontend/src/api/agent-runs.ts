@@ -1,5 +1,5 @@
 import type { components } from './generated/openapi'
-import { apiUrl } from './url'
+import { apiTransport } from './transport'
 import type { PublicRunEvent } from '@/features/agent/run-reducer'
 
 export type CreateRunResult = {
@@ -9,15 +9,37 @@ export type CreateRunResult = {
   state: string
 }
 
+export type AskFreshness = components['schemas']['AskResponse']['freshness']
+export type AskContextPayload = components['schemas']['AskContext']
+type AskResponsePayload = components['schemas']['AskResponse']
+
+export interface AskEvidence {
+  entityType: string
+  entityId: string
+  label: string
+  sourceUpdatedAt: string | null
+}
+
+export interface AskAnswer {
+  scenarioId: string
+  answer: string
+  evidence: AskEvidence[]
+  freshness: AskFreshness
+  uncertainty: string | null
+  scheduleVersion: number
+  answeredAt: string
+}
+
 type RunCreateResponse = components['schemas']['RunCreateResponse']
 
 export async function createRun(eventId: string, idempotencyKey?: string): Promise<CreateRunResult> {
   const headers = new Headers({ Accept: 'application/json' })
   if (idempotencyKey) headers.set('Idempotency-Key', idempotencyKey)
-  const response = await fetch(apiUrl(`/api/v1/events/${encodeURIComponent(eventId)}/runs`), { method: 'POST', headers })
-  if (!response.ok) throw new Error(`Run creation failed with status ${response.status}.`)
-
-  const payload = await response.json() as RunCreateResponse
+  const payload = await apiTransport.post<RunCreateResponse>(
+    `/api/v1/events/${encodeURIComponent(eventId)}/runs`,
+    undefined,
+    { headers },
+  )
   const data = payload as unknown as Record<string, unknown>
   const runId = stringValue(data.run_id)
   if (!runId) throw new Error('Run creation response did not include a run id.')
@@ -27,6 +49,18 @@ export async function createRun(eventId: string, idempotencyKey?: string): Promi
     streamUrl: stringValue(data.stream_url) ?? `/api/v1/runs/${encodeURIComponent(runId)}/stream`,
     state: stringValue(data.state) ?? 'queued',
   }
+}
+
+export async function askRipple(question: string, context?: AskContextPayload): Promise<AskAnswer> {
+  const trimmed = question.trim()
+  if (!trimmed || trimmed.length > 2000) {
+    throw new Error('Question must be between 1 and 2000 characters.')
+  }
+  const payload = await apiTransport.post<AskResponsePayload>('/api/v1/ask', {
+    question: trimmed,
+    ...(context && Object.keys(context).length > 0 ? { context } : {}),
+  })
+  return adaptAskAnswer(payload)
 }
 
 export interface StreamRunOptions {
@@ -44,8 +78,10 @@ export async function streamRun(runId: string, options: StreamRunOptions): Promi
   if (after !== undefined) headers.set('Last-Event-ID', String(after))
 
   try {
-    const response = await fetch(apiUrl(`/api/v1/runs/${encodeURIComponent(runId)}/stream${query}`), { headers, signal: options.signal })
-    if (!response.ok) throw new Error(`Run stream failed with status ${response.status}.`)
+    const response = await apiTransport.openSse(
+      `/api/v1/runs/${encodeURIComponent(runId)}/stream${query}`,
+      { headers, signal: options.signal },
+    )
     options.onOpen?.()
     if (!response.body) throw new Error('Run stream did not include a readable body.')
 
@@ -116,4 +152,49 @@ function numberValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value)
   return undefined
+}
+
+function adaptAskAnswer(value: AskResponsePayload): AskAnswer {
+  const root = asRecord(value)
+  const scenarioId = stringValue(root?.scenario_id)
+  const answer = stringValue(root?.answer)
+  const freshness = freshnessValue(root?.freshness)
+  const scheduleVersion = numberValue(root?.schedule_version)
+  const answeredAt = stringValue(root?.answered_at)
+  if (!scenarioId || !answer || !freshness || scheduleVersion === undefined || !answeredAt) {
+    throw new Error('Ask response did not include a complete read-only answer.')
+  }
+  const evidence = Array.isArray(root?.evidence)
+    ? root.evidence.map(adaptAskEvidence)
+    : []
+  return {
+    scenarioId,
+    answer,
+    evidence,
+    freshness,
+    uncertainty: nullableString(root?.uncertainty),
+    scheduleVersion,
+    answeredAt,
+  }
+}
+
+function adaptAskEvidence(value: unknown): AskEvidence {
+  const row = asRecord(value)
+  const entityType = stringValue(row?.entity_type)
+  const entityId = stringValue(row?.entity_id)
+  const label = stringValue(row?.label)
+  if (!entityType || !entityId || !label) throw new Error('Ask evidence was missing a canonical identity.')
+  return { entityType, entityId, label, sourceUpdatedAt: nullableString(row?.source_updated_at) }
+}
+
+function freshnessValue(value: unknown): AskFreshness | undefined {
+  return value === 'current' || value === 'stale' || value === 'unknown' ? value : undefined
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+function nullableString(value: unknown): string | null {
+  return value === null ? null : stringValue(value) ?? null
 }

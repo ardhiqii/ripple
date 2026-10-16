@@ -31,6 +31,8 @@ async def list_readiness(
     confidence: Confidence | None = None,
     risk: str | None = None,
     item: str | None = None,
+    source_type: str | None = None,
+    q: str | None = None,
 ) -> ReadinessListResponse:
     return await ReadinessService(session, OFFSHORE_PACK).list(
         scenario_id_from_request(request),
@@ -39,6 +41,8 @@ async def list_readiness(
         confidence=confidence,
         risk=risk,
         item_id=item,
+        source_type=source_type,
+        search=q,
     )
 
 

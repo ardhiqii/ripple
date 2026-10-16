@@ -81,3 +81,195 @@ html,body,#root{height:100%;overflow:hidden}
   pointer-events: none;
 }
 .unified .date-nav button:disabled { cursor: not-allowed; opacity: .45; }
+
+/* Selection is a neutral association with the open inspector; keyboard focus keeps the blue ring. */
+.job.selected { outline: 0; outline-offset: 0; box-shadow: 0 0 0 2px var(--line), 0 0 0 4px var(--surface); }
+.unified .job.selected { outline: 0; outline-offset: 0; box-shadow: 0 0 0 2px #697586, 0 0 0 4px #fff; }
+.unified .job.selected:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 2px #697586, 0 0 0 4px #fff; }
+
+/* Resource metadata is small but remains normal text; keep it above the AA contrast threshold. */
+.unified .resource-cell small { color: var(--ds-color-text-muted); }
+.unified .resource-cell.is-unavailable { background: var(--ds-color-surface-subtle); }
+.unified .resource-unavailable { display: block; color: var(--ds-color-danger); font-size: 7px; font-style: normal; font-weight: 700; }
+
+/* FE-26: dense fleets keep a bounded two-axis workspace; sparse scenarios use content-fit geometry. */
+.unified .timeline-shell.is-dense { height: 100%; }
+.unified .timeline-shell.is-dense .timeline-scroll { height: 100%; }
+.unified .timeline-shell.is-sparse { width: max-content; max-width: 100%; height: auto; overflow: visible; }
+.unified .timeline-shell.is-sparse .timeline-desktop,
+.unified .timeline-shell.is-sparse .timeline-scroll { height: auto; }
+.unified .timeline-grid.is-sparse { width: max-content; }
+
+/* FE-26: each day boundary owns one vertical rule; weekend/today treatment is data-driven. */
+.unified .months b:not(:first-child) { border-left: 1px solid var(--ds-color-border-strong); }
+.unified .days span.month-start,
+.unified .track > i.month-start { border-left: 0; }
+.unified .days span.weekend,
+.unified .track > i.weekend { background: var(--ds-color-surface-subtle); }
+.unified .days span.today-date { background: var(--ds-color-primary-subtle); color: var(--ds-color-info); }
+.unified .days span.today-date b { background: var(--ds-color-primary); color: var(--ds-color-on-primary); }
+
+/* FE-30: native horizontal navigation, contained sticky layers, and lane-safe rows. */
+.unified .timeline-scroll { cursor: grab; touch-action: auto; user-select: auto; }
+.unified .timeline-scroll.is-panning { cursor: grabbing; user-select: none; }
+.unified .timeline-grid .track { position: relative; z-index: 4; align-content: stretch; overflow: visible; }
+.unified .timeline-grid .track > i { position: relative; z-index: 0; }
+.unified .timeline-grid .resource-cell { z-index: 10; align-self: stretch; height: auto; min-height: 68px; }
+.unified .timeline-grid .group-track { z-index: 3; }
+.unified .timeline-grid .booking-lane { overflow: visible; }
+.unified .timeline-grid .booking-lane .job { min-width: 0; }
+/* FE-31: semantic Timeline channels. Live API bookings stay neutral; meaning is never color-only. */
+.unified > .legend > strong:first-child,
+.unified > .legend > span:nth-of-type(-n + 4),
+.unified > .legend > u { display: none; }
+
+.unified .job.status-progress { border-color: var(--ds-color-border-strong); background: var(--ds-color-surface-subtle); }
+.unified .job.status-progress .job-progress { background: var(--ds-color-primary-subtle); border-right: 2px solid var(--ds-color-primary); }
+.unified .job.status-complete { border-color: var(--ds-color-border-strong); background: var(--ds-color-surface-subtle); opacity: .72; }
+.unified .job.status-hold { border-color: var(--ds-color-border-strong); background-color: var(--ds-color-surface-subtle); background-image: repeating-linear-gradient(135deg, transparent 0, transparent 6px, rgba(105,117,134,.18) 6px, rgba(105,117,134,.18) 9px); }
+.unified .job-status { display: inline-flex; align-items: center; gap: 3px; min-width: 0; margin-left: 5px; color: var(--ds-color-text-muted); font: 600 7px var(--ds-font-mono, monospace); }
+.unified .job-status svg { flex: 0 0 auto; width: 10px; height: 10px; }
+.unified .job.status-progress .job-status svg { color: var(--ds-color-primary); }
+.unified .job.status-complete .job-status svg { color: var(--ds-color-success); }
+.unified .job.status-hold .job-status svg { color: var(--ds-color-text-muted); }
+.unified .job-status svg + svg { color: var(--ds-color-danger); }
+.unified .job-activity { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unified .job small { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.unified .job:focus-visible, .unified .timeline-unavailability:focus-visible, .unified .timeline-conflict-marker:focus-visible { outline: 2px solid var(--ds-color-primary); outline-offset: 2px; }
+
+.unified .timeline-unavailability { cursor: help; }
+.unified .timeline-unavailability.weather { border-style: solid; background: repeating-linear-gradient(135deg, var(--ds-color-surface-subtle) 0, var(--ds-color-surface-subtle) 5px, var(--ds-color-canvas) 5px, var(--ds-color-canvas) 9px); }
+.unified .timeline-unavailability.intersects-booking { box-shadow: inset 0 0 0 1px var(--ds-color-danger); }
+.unified .timeline-conflict-marker { cursor: help; }
+
+.unified .timeline-legend { min-height: 48px; padding: 8px 18px; gap: 14px; border-top: 1px solid var(--ds-color-border); background: var(--ds-color-surface); }
+.unified .timeline-legend > span { gap: 5px; }
+.unified .timeline-legend > span > svg { width: 14px; height: 14px; }
+.unified .timeline-legend .legend-complete svg { color: var(--ds-color-success); }
+.unified .timeline-legend .legend-maintenance svg { color: var(--ds-color-warning); }
+.unified .timeline-legend .legend-conflict svg { color: var(--ds-color-danger); }
+.unified .timeline-legend .legend-today svg { color: var(--ds-color-primary); }
+.unified .timeline-legend i { width: 14px; height: 14px; border: 2px solid var(--ds-color-border-strong); border-radius: 3px; }
+.unified .timeline-legend .booking-key { background: var(--ds-color-surface-subtle); }
+.unified .timeline-legend .progress-key { position: relative; overflow: hidden; background: var(--ds-color-surface-subtle); }
+.unified .timeline-legend .progress-key::after { content: ''; position: absolute; inset: 0 45% 0 0; background: var(--ds-color-primary-subtle); border-right: 2px solid var(--ds-color-primary); }
+.unified .timeline-legend .maintenance-key { border-color: var(--ds-color-warning); border-style: dashed; background: var(--ds-color-warning-subtle); }
+.unified .timeline-legend .unavailable-key { border-color: var(--ds-color-danger); background: repeating-linear-gradient(135deg, var(--ds-color-danger-subtle) 0, var(--ds-color-danger-subtle) 4px, var(--ds-color-surface) 4px, var(--ds-color-surface) 7px); }
+.unified .timeline-legend .weather-key { border-color: var(--ds-color-border-strong); background: repeating-linear-gradient(135deg, var(--ds-color-surface-subtle) 0, var(--ds-color-surface-subtle) 4px, var(--ds-color-canvas) 4px, var(--ds-color-canvas) 7px); }
+.unified .timeline-legend .selected-key { border: 2px solid var(--ds-color-primary); background: var(--ds-color-surface); }
+
+@media(max-width:700px){
+  .unified .timeline-legend { min-height: 44px; padding: 6px 10px; gap: 12px; }
+}
+
+/* INT-23: keep the route-owned navigation and Workspace-owned layers aligned
+   with the existing unified shell without changing the broader design system. */
+.unified .timeline-navigation {
+  min-width: 0;
+  grid-template-columns: minmax(250px, .85fr) minmax(330px, 1fr) minmax(390px, auto);
+}
+.unified .timeline-navigation__title,
+.unified .timeline-navigation__filters,
+.unified .timeline-navigation__date-nav {
+  min-width: 0;
+}
+.unified .timeline-navigation__filters {
+  overflow: hidden;
+}
+.unified .timeline-navigation__date-nav {
+  overflow: hidden;
+}
+.unified .timeline-navigation__period-label {
+  min-width: 0;
+  flex: 0 1 178px;
+}
+.unified .timeline-density .timeline-grid .resource-head {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 24;
+}
+.unified .timeline-density .calendar-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.unified .timeline-density .timeline-grid .resource-cell {
+  position: sticky;
+  left: 0;
+  z-index: 18;
+}
+.unified .timeline-density .timeline-grid .group-label {
+  position: sticky;
+  left: 0;
+  top: 90px;
+  z-index: 22;
+}
+.unified .timeline-density .timeline-grid .group-track {
+  position: sticky;
+  top: 90px;
+  z-index: 16;
+}
+.unified .timeline-density .timeline-scroll {
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1220px) {
+  .unified .timeline-navigation {
+    grid-template-columns: minmax(220px, .8fr) minmax(270px, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .unified .timeline-navigation {
+    grid-template-columns: 1fr;
+  }
+  .unified .timeline-density .timeline-grid .group-label,
+  .unified .timeline-density .timeline-grid .group-track {
+    top: 90px;
+  }
+}
+
+/* INT-24: reconcile the grouped legend and portalled issue layers with the
+   unified shell while keeping all issue/weather styling component-scoped. */
+.unified .timeline-legend {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.unified .timeline-legend .legend-group {
+  align-items: center;
+  min-width: max-content;
+}
+.unified .timeline-legend .legend-group > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.unified .timeline-legend .legend-group > strong {
+  color: var(--ds-color-text);
+  font-size: 8px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.unified .timeline-legend .legend-weather-no-go svg,
+.unified .timeline-legend .legend-conflict svg,
+.unified .timeline-legend .legend-unavailable svg {
+  color: var(--ds-color-danger);
+}
+.unified .timeline-legend .legend-maintenance svg {
+  color: var(--ds-color-warning);
+}
+.unified .timeline-density .timeline-marker-detail,
+.unified .timeline-weather-marker__detail {
+  z-index: 60;
+}
+.unified .timeline-density .days .timeline-weather-marker,
+.unified .timeline-density .days .timeline-weather-marker__tooltip {
+  border-right: 0;
+}
+.unified .timeline-density .days .timeline-weather-marker__tooltip {
+  display: block;
+}

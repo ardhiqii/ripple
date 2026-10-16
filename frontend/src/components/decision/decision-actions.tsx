@@ -3,8 +3,8 @@ import { ArrowClockwise, CheckCircle, Info, WarningCircle } from '@phosphor-icon
 
 import type { components } from '@/api/generated/openapi'
 import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Textarea } from '@/components/ui'
-import { isOptionSelectable, type PlanOptionView, type PlanWorkspaceData } from '@/features/plans/plan-data'
-import type { ApprovalResponse } from '@/features/plans/plan-mutations'
+import { isOptionSelectable, optionMetricValue, type PlanOptionView, type PlanWorkspaceData } from '@/features/plans/plan-adapter'
+import type { ApprovalResponse, DecisionMutationResponse } from '@/features/plans/plan-mutations'
 
 export type ApprovePayload = components['schemas']['ApprovePlanRequest']
 export type RejectPayload = components['schemas']['RejectPlanRequest']
@@ -35,6 +35,8 @@ export interface DecisionActionsProps {
   onRecompute?: () => void
   onReturnToReview?: () => void
   approvalResult?: ApprovalResponse | null
+  decisionResult?: DecisionMutationResponse | null
+  recomputeRequired?: boolean
   onOpenTimeline?: () => void
   onOpenReadiness?: () => void
 }
@@ -64,6 +66,8 @@ export function DecisionActions({
   onRecompute,
   onReturnToReview,
   approvalResult = null,
+  decisionResult = null,
+  recomputeRequired = false,
   onOpenTimeline,
   onOpenReadiness,
 }: DecisionActionsProps) {
@@ -191,16 +195,18 @@ export function DecisionActions({
 
       {!approvalReady ? <PreconditionSummary planIsProposed={planIsProposed} optionIsValid={optionIsValid} missingConditionIds={missingConditionIds} stale={stale} canAct={canAct} /> : null}
       {approvalResult ? <AppliedSummary result={approvalResult} onOpenTimeline={onOpenTimeline} onOpenReadiness={onOpenReadiness} /> : null}
+      {decisionResult ? <DecisionRecordedSummary result={decisionResult} /> : null}
+      {recomputeRequired ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-warning/30 bg-warning-subtle p-3 text-xs text-ink" role="status"><span><strong className="block">Manual re-review required</strong>The schedule changed. Recompute and review a current server plan before approving again.</span><Button type="button" size="sm" variant="primary" onClick={onRecompute} disabled={!onRecompute || approvalPending}> <ArrowClockwise aria-hidden="true" size={15} />Recompute with latest schedule</Button></div> : null}
       {error && !approvalOpen ? <InlineError message={error} /> : null}
 
       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
         <Button type="button" variant="primary" onClick={openApproval} disabled={!approvalReady || approvalPending}>
           <CheckCircle aria-hidden="true" size={16} />Approve option
         </Button>
-        <Button type="button" variant="destructive" onClick={() => { setRejectSubmitted(false); setRejectOpen(true) }} disabled={rejectPending}>
+        <Button type="button" variant="destructive" onClick={() => { setRejectSubmitted(false); setRejectOpen(true) }} disabled={!canAct || rejectPending}>
           Reject plan
         </Button>
-        <Button type="button" variant="secondary" onClick={() => { setReplySubmitted(false); setReplyOpen(true) }} disabled={replyPending}>
+        <Button type="button" variant="secondary" onClick={() => { setReplySubmitted(false); setReplyOpen(true) }} disabled={!canAct || replyPending}>
           Reply and replan
         </Button>
       </div>
@@ -300,9 +306,11 @@ function ApprovalSummary({ data, option, acknowledgedConditionIds }: { data: Pla
 }
 
 function ImpactList({ option }: { option: PlanOptionView }) {
-  const readinessChanges = option.changes.filter((change) => /readiness|date|test/i.test(`${change.kind} ${change.target}`))
-  const resourceChanges = option.changes.filter((change) => /cargo|resource|barge|crew/i.test(`${change.kind} ${change.target}`))
-  return <section className="grid gap-2"><h3 className="m-0 text-xs font-bold uppercase tracking-wider text-muted">Proposed impact</h3><div className="grid gap-2 sm:grid-cols-3"><ImpactItem label="Jobs moved" value={String(option.kpi.jobs_moved ?? option.changes.length)} /><ImpactItem label="Readiness dates changed" value={readinessChanges.length ? String(readinessChanges.length) : 'None reported'} /><ImpactItem label="Cargo/resource changes" value={resourceChanges.length ? String(resourceChanges.length) : 'None reported'} /></div><div className="flex items-center gap-2 text-xs text-muted"><span className="font-bold text-ink">Estimated model impact</span><span>{option.objectiveValue === null ? 'Not reported' : String(option.objectiveValue)}</span></div></section>
+  const metric = (key: string) => {
+    const value = optionMetricValue(option, key)
+    return value === null ? 'Not reported' : String(value)
+  }
+  return <section className="grid gap-2"><h3 className="m-0 text-xs font-bold uppercase tracking-wider text-muted">Proposed impact</h3><div className="grid gap-2 sm:grid-cols-3"><ImpactItem label="Jobs moved" value={metric('jobs_moved')} /><ImpactItem label="Readiness dates changed" value={metric('readiness_dates_changed')} /><ImpactItem label="Cargo/resource changes" value={metric('resource_changes')} /></div><div className="flex items-center gap-2 text-xs text-muted"><span className="font-bold text-ink">Estimated model impact</span><span>{option.objectiveValue === null ? 'Not reported' : String(option.objectiveValue)}</span></div></section>
 }
 
 function ImpactItem({ label, value }: { label: string; value: string }) { return <div className="grid gap-1 rounded-sm border border-border p-2"><span className="text-[10px] uppercase tracking-wider text-muted">{label}</span><strong className="text-xs text-ink">{value}</strong></div> }
@@ -330,4 +338,8 @@ function AppliedSummary({ result, onOpenTimeline, onOpenReadiness }: { result: A
     <p className="m-0 text-xs text-muted">Schedule v{String(result.schedule_version_before)} → v{String(result.schedule_version_after)}. The approval and affected objects are now recorded.</p>
     <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="secondary" onClick={onOpenTimeline} disabled={!onOpenTimeline}>Open Timeline</Button><Button type="button" size="sm" variant="secondary" onClick={onOpenReadiness} disabled={!onOpenReadiness}>Open Readiness</Button></div>
   </div>
+}
+
+function DecisionRecordedSummary({ result }: { result: DecisionMutationResponse }) {
+  return <div className="grid gap-1 rounded-sm border border-success/30 bg-success-subtle p-3 text-xs text-ink" role="status"><strong>Decision recorded</strong><span className="font-mono">Decision {String(result.decision_id)}</span>{result.event_id ? <span>Linked event: <span className="font-mono">{String(result.event_id)}</span></span> : null}<span>{result.replan_requested ? 'A replan was requested; the linked run is shown after it starts.' : 'The server-confirmed decision is now available in History.'}</span></div>
 }

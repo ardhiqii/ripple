@@ -15,6 +15,7 @@ const lifecycles: EventLifecycle[] = [
   'needs_info',
   'ready',
   'running',
+  'pending_plan',
   'options_ready',
   'pending_decision',
   'approved',

@@ -16,9 +16,11 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
+    Sequence,
     SmallInteger,
     String,
     Text,
@@ -37,20 +39,29 @@ class Base(DeclarativeBase):
 
 Timestamp = DateTime(timezone=True)
 Json = dict[str, Any]
+schedule_state_id_sequence = Sequence(
+    "schedule_state_id_seq",
+    start=1,
+    increment=1,
+    minvalue=1,
+    maxvalue=32767,
+)
 
 
 class ScheduleState(Base):
     __tablename__ = "schedule_state"
 
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    id: Mapped[int] = mapped_column(
+        SmallInteger,
+        schedule_state_id_sequence,
+        primary_key=True,
+        autoincrement=True,
+    )
     scenario_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
     updated_at: Mapped[datetime] = mapped_column(
         Timestamp, nullable=False, server_default=func.current_timestamp()
     )
-
-    __table_args__ = (CheckConstraint("id = 1", name="ck_schedule_state_singleton_id"),)
-
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -95,7 +106,45 @@ class Resource(Base):
 
     __table_args__ = (
         UniqueConstraint("scenario_id", "name", name="uq_resources_scenario_name"),
+        UniqueConstraint("id", "scenario_id", name="uq_resources_id_scenario"),
         CheckConstraint("capacity > 0", name="ck_resources_capacity_positive"),
+    )
+
+
+class ResourceUnavailability(Base):
+    __tablename__ = "resource_unavailability"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    scenario_id: Mapped[str] = mapped_column(Text, nullable=False)
+    resource_id: Mapped[str] = mapped_column(Text, nullable=False)
+    start_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["resource_id", "scenario_id"],
+            ["resources.id", "resources.scenario_id"],
+            name="fk_resource_unavailability_resource_scenario",
+        ),
+        CheckConstraint("end_day >= start_day", name="ck_resource_unavailability_day_range"),
+        CheckConstraint(
+            "kind IN ('maintenance', 'unavailable')",
+            name="ck_resource_unavailability_kind",
+        ),
+        Index(
+            "ix_resource_unavailability_scenario_range",
+            "scenario_id",
+            "start_day",
+            "end_day",
+        ),
+        Index(
+            "ix_resource_unavailability_resource_range",
+            "resource_id",
+            "start_day",
+            "end_day",
+        ),
     )
 
 
@@ -344,6 +393,16 @@ class Decision(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     plan_id: Mapped[UUID] = mapped_column(ForeignKey("plans.id"), nullable=False)
+    event_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    plan_version: Mapped[int | None] = mapped_column(Integer)
+    event_nature: Mapped[str | None] = mapped_column(String(32))
+    event_cause: Mapped[str | None] = mapped_column(Text)
+    job_ids: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    context_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default=text("'partial_legacy'")
+    )
     selected_option_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
     action: Mapped[str] = mapped_column(String(32), nullable=False)
     actor: Mapped[str] = mapped_column(Text, nullable=False)
@@ -354,6 +413,13 @@ class Decision(Base):
     schedule_version_after: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(
         Timestamp, nullable=False, server_default=func.current_timestamp()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "context_status IN ('captured', 'partial_legacy')",
+            name="ck_decisions_context_status",
+        ),
     )
 
 

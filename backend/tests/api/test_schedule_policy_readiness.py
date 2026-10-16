@@ -72,6 +72,46 @@ def test_schedule_and_readiness_reads_use_scenario_and_derived_fields() -> None:
     not os.getenv("RIPPLE_DATABASE_URL"),
     reason="set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures",
 )
+def test_readiness_server_search_count_and_scenario_summary() -> None:
+    settings = Settings(environment="local", database_url=os.environ["RIPPLE_DATABASE_URL"])
+    headers = {"X-Scenario-ID": "fleet-scale"}
+    with TestClient(create_app(settings)) as client:
+        unfiltered = client.get("/api/v1/readiness", headers=headers)
+        searched = client.get(
+            "/api/v1/readiness",
+            headers=headers,
+            params={"q": "stale source", "source_type": "erp"},
+        )
+        source_filtered = client.get(
+            "/api/v1/readiness",
+            headers=headers,
+            params={"source_type": "erp"},
+        )
+        job_filtered = client.get(
+            "/api/v1/readiness",
+            headers=headers,
+            params={"job_id": "FS-JOB-017"},
+        )
+
+    assert unfiltered.status_code == 200
+    assert searched.status_code == 200
+    searched_body = searched.json()
+    assert searched_body["total_count"] == 1
+    assert searched_body["summary"]["total"] == 32
+    assert searched_body["items"][0]["source_type"] == "erp"
+    assert searched_body["items"][0]["source_reference"].startswith("stale source")
+    assert source_filtered.status_code == 200
+    assert source_filtered.json()["total_count"] == 16
+    assert source_filtered.json()["summary"]["total"] == 32
+    assert job_filtered.status_code == 200
+    assert 0 < job_filtered.json()["total_count"] < unfiltered.json()["total_count"]
+    assert job_filtered.json()["summary"] == unfiltered.json()["summary"]
+
+
+@pytest.mark.skipif(
+    not os.getenv("RIPPLE_DATABASE_URL"),
+    reason="set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures",
+)
 def test_readiness_row_version_conflict_preserves_optimistic_state() -> None:
     settings = Settings(environment="test", database_url=os.environ["RIPPLE_DATABASE_URL"])
     with TestClient(create_app(settings)) as client:

@@ -59,6 +59,18 @@ describe('DecisionActions', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('The server will revalidate')
   })
 
+  it('does not invent impact metrics that the server did not report', async () => {
+    const user = userEvent.setup()
+    const optionWithoutMetrics = { ...selectedOption, kpi: {}, objectiveValue: null }
+    renderActions({ selectedOption: optionWithoutMetrics })
+
+    await user.click(screen.getByRole('button', { name: 'Approve option' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Jobs movedNot reported')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Readiness dates changedNot reported')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Cargo/resource changesNot reported')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Estimated model impactNot reported')
+  })
+
   it('locks the approval dialog while pending and sends only one request', async () => {
     const user = userEvent.setup()
     const onApprove = vi.fn()
@@ -94,5 +106,23 @@ describe('DecisionActions', () => {
     await user.click(screen.getByRole('button', { name: 'Recompute with latest schedule' }))
     expect(onRecompute).toHaveBeenCalledOnce()
     expect(onReturnToReview).not.toHaveBeenCalled()
+  })
+
+  it('keeps a recompute affordance after the conflict dialog is closed', async () => {
+    const user = userEvent.setup()
+    const onRecompute = vi.fn()
+    renderActions({ canAct: false, recomputeRequired: true, onRecompute })
+
+    const button = screen.getByRole('button', { name: 'Recompute with latest schedule' })
+    expect(button).toBeInTheDocument()
+    await user.click(button)
+    expect(onRecompute).toHaveBeenCalledOnce()
+  })
+
+  it('shows the server decision ID for a recorded reject or reply', () => {
+    renderActions({ decisionResult: { action: 'reject', decision_id: 'decision-42', event_id: 'event-9', plan_id: data.id, replan_requested: false } })
+
+    expect(screen.getByRole('status')).toHaveTextContent('Decision decision-42')
+    expect(screen.getByRole('status')).toHaveTextContent('Linked event: event-9')
   })
 })

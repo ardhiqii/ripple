@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from decimal import Decimal
@@ -6,7 +7,7 @@ from enum import StrEnum
 from app.domain.jobs import Job
 from app.domain.policy import DomainPack
 from app.domain.readiness import ReadinessItem
-from app.domain.resources import Booking, Resource
+from app.domain.resources import Booking, Resource, ResourceUnavailability
 from app.engine.capacity import CapacityReport, calculate_all_capacity
 from app.engine.weather import WeatherObservation, WeatherStatus, check_booking_weather
 
@@ -34,6 +35,7 @@ class ScheduleSnapshot:
     readiness_items: tuple[ReadinessItem, ...] = ()
     forecast: tuple[WeatherObservation, ...] = ()
     schedule_version: int = 0
+    unavailability: tuple[ResourceUnavailability, ...] = ()
 
 
 class ViolationKind(StrEnum):
@@ -41,6 +43,7 @@ class ViolationKind(StrEnum):
     INVALID_CHANGE = "invalid_change"
     LOCKED_JOB_MOVE = "locked_job_move"
     RESOURCE_OVERLAP = "resource_overlap"
+    RESOURCE_UNAVAILABLE = "resource_unavailable"
     CAPACITY_OVERFLOW = "capacity_overflow"
     WEATHER_NO_GO = "weather_no_go"
     MISSING_WEATHER = "missing_weather"
@@ -246,6 +249,7 @@ def _apply_changes(
             readiness_items=tuple(readiness_items),
             forecast=snapshot.forecast,
             schedule_version=snapshot.schedule_version,
+            unavailability=snapshot.unavailability,
         ),
         violations,
     )
@@ -257,6 +261,15 @@ def _job_map(snapshot: ScheduleSnapshot) -> dict[str, Job]:
 
 def _resource_map(snapshot: ScheduleSnapshot) -> dict[str, Resource]:
     return {resource.id: resource for resource in snapshot.resources}
+
+
+def _group_unavailability(
+    intervals: tuple[ResourceUnavailability, ...],
+) -> dict[str, list[ResourceUnavailability]]:
+    grouped: dict[str, list[ResourceUnavailability]] = defaultdict(list)
+    for interval in intervals:
+        grouped[interval.resource_id].append(interval)
+    return grouped
 
 
 def _changed_objects(
@@ -354,9 +367,38 @@ def simulate(
 
     candidate, violations = _apply_changes(snapshot, tuple(changes))
     resource_map = _resource_map(candidate)
-    capacity_reports = calculate_all_capacity(candidate.resources, candidate.bookings)
+    capacity_reports = calculate_all_capacity(
+        candidate.resources,
+        candidate.bookings,
+        candidate.unavailability,
+    )
+    unavailable_by_resource: dict[str, tuple[ResourceUnavailability, ...]] = {
+        resource_id: tuple(intervals)
+        for resource_id, intervals in _group_unavailability(candidate.unavailability).items()
+    }
+    for booking in candidate.bookings:
+        if booking.status.value == "cancelled":
+            continue
+        for interval in unavailable_by_resource.get(booking.resource_id, ()):
+            if booking.start_day > interval.end_day or booking.end_day < interval.start_day:
+                continue
+            overlap_start = max(booking.start_day, interval.start_day)
+            overlap_end = min(booking.end_day, interval.end_day)
+            violations.append(
+                SimulationViolation(
+                    ViolationKind.RESOURCE_UNAVAILABLE,
+                    booking.id,
+                    overlap_start,
+                    (
+                        f"booking {booking.id} overlaps {interval.kind} interval {interval.id} "
+                        f"on D+{overlap_start}–D+{overlap_end}: {interval.reason}"
+                    ),
+                )
+            )
     for report in capacity_reports:
         for point in report.points:
+            if point.capacity == 0:
+                continue
             if point.overflow <= 0:
                 continue
             kind = (

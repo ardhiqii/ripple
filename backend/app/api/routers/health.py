@@ -1,4 +1,3 @@
-import os
 from typing import Literal
 
 from fastapi import APIRouter, Request
@@ -74,11 +73,29 @@ async def diagnostics(request: Request) -> DiagnosticsResponse:
             database["healthy"] = False
 
     solver = _solver_self_check()
-    vertex_ai: dict[str, object] = {
-        "configured": bool(
-            os.getenv("RIPPLE_VERTEX_PROJECT", "").strip()
-            and os.getenv("RIPPLE_INTAKE_MODEL", "").strip()
+    settings = getattr(request.app.state, "settings", None)
+    provider = getattr(settings, "model_provider", "synthetic")
+    model_name = getattr(settings, "intake_model", "")
+    gemini_api_key = getattr(settings, "gemini_api_key", None)
+    environment = getattr(settings, "environment", "local")
+    if provider == "gemini_developer":
+        configured = bool(
+            gemini_api_key
+            and gemini_api_key.get_secret_value().strip()
+            and model_name.strip()
         )
+    elif provider == "vertex":
+        configured = bool(
+            environment in {"staging", "production"}
+            and getattr(settings, "vertex_project", None)
+            and model_name.strip()
+        )
+    else:
+        configured = environment in {"local", "preview"}
+    vertex_ai: dict[str, object] = {
+        "provider": provider,
+        "model": model_name,
+        "configured": configured,
     }
     degraded = database["healthy"] is False or solver["status"] != "ok"
     metrics = getattr(request.app.state, "metrics", None)

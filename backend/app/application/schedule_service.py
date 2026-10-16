@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from app.application.errors import ApplicationError
@@ -13,6 +13,7 @@ from app.application.schemas import (
     ResourceResponse,
     ScheduleChangesResponse,
     ScheduleResponse,
+    UnavailabilityResponse,
     WeatherResponse,
 )
 from app.domain.policy import DomainPack
@@ -46,8 +47,9 @@ class ScheduleService:
                 "The schedule range start must be on or before its end.",
                 details={"from": from_day, "to": to_day},
             )
+        schedule_repository = ScheduleRepository(self._session)
         try:
-            snapshot = await ScheduleRepository(self._session).load_snapshot(scenario_id)
+            snapshot = await schedule_repository.load_snapshot(scenario_id)
         except LookupError as exc:
             raise ApplicationError(
                 404,
@@ -64,6 +66,12 @@ class ScheduleService:
             or resource.unit.lower() in group_values
         )
         resource_ids = {resource.id for resource in resources}
+        unavailability = await schedule_repository.list_unavailability(
+            scenario_id,
+            resource_ids=resource_ids,
+            from_day=from_day,
+            to_day=to_day,
+        )
 
         def in_range(start: int, end: int) -> bool:
             return (from_day is None or end >= from_day) and (
@@ -93,7 +101,13 @@ class ScheduleService:
             for observation in snapshot.forecast
             if observation.location in locations and in_range(observation.day, observation.day)
         )
-        reports = calculate_all_capacity(resources, snapshot.bookings)
+        reports = calculate_all_capacity(
+            resources,
+            snapshot.bookings,
+            snapshot.unavailability,
+            from_day=from_day,
+            to_day=to_day,
+        )
 
         return ScheduleResponse(
             scenario_id=snapshot.scenario_id,
@@ -140,6 +154,25 @@ class ScheduleService:
                     row_version=booking.row_version,
                 )
                 for booking in bookings
+            ),
+            unavailability=tuple(
+                UnavailabilityResponse(
+                    id=interval.id,
+                    resource_id=interval.resource_id,
+                    start_day=(
+                        max(interval.start_day, from_day)
+                        if from_day is not None
+                        else interval.start_day
+                    ),
+                    end_day=(
+                        min(interval.end_day, to_day)
+                        if to_day is not None
+                        else interval.end_day
+                    ),
+                    kind=cast(Literal["maintenance", "unavailable"], interval.kind),
+                    reason=interval.reason,
+                )
+                for interval in unavailability
             ),
             weather=tuple(
                 WeatherResponse(

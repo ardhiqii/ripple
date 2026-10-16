@@ -1,47 +1,87 @@
 import { z } from 'zod'
 
+import type { TimelineHorizon } from '@/features/schedule/timeline-horizon'
+
 const optionalString = z.string().trim().min(1).optional().catch(undefined)
 const searchString = z.preprocess((value) => (typeof value === 'string' ? value.trim() : value), z.string().min(1))
 const stringList = z.preprocess(
   (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]),
   z.array(searchString),
 ).catch([])
-const nonNegativeInteger = (fallback: number) => z.preprocess(
-  (value) => (typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value),
-  z.number().int().min(0),
-).catch(fallback)
-
 function parseSafely<T>(schema: z.ZodType<T>, search: Record<string, unknown>, fallback: T): T {
   const result = schema.safeParse(search)
   return result.success ? result.data : fallback
 }
 
+export type RootSearch = { scenario?: string }
+const rootScenario = z.preprocess((value) => typeof value === 'string' ? value.trim() : value, z.string().optional())
+const rootSchema = z.object({ scenario: rootScenario })
+export const rootSearchSchema = (search: Record<string, unknown>): RootSearch => parseSafely(rootSchema, search, {})
+
 export type TimelineSearch = {
   from: number
   to: number
+  horizon?: TimelineHorizon
   groups: string[]
   vendors: string[]
   status?: string
   q?: string
   job?: string
   zoom?: string
+  rangeIssue?: 'invalid' | 'reversed'
 }
 
-const timelineDefaults: TimelineSearch = { from: 0, to: 14, groups: [], vendors: [], status: undefined, job: undefined, zoom: undefined }
-const timelineSchema = z.object({
-  from: nonNegativeInteger(timelineDefaults.from),
-  to: nonNegativeInteger(timelineDefaults.to),
+const timelineDefaults: TimelineSearch = { from: 0, to: 13, horizon: undefined, groups: [], vendors: [], status: undefined, job: undefined, zoom: undefined }
+const timelineFiltersSchema = z.object({
   groups: stringList,
   vendors: stringList,
   status: optionalString,
   q: optionalString,
   job: optionalString,
   zoom: optionalString,
-}).transform((value) => value.to >= value.from ? value : timelineDefaults)
+})
 
 export const timelineSearchSchema = (search: Record<string, unknown>): TimelineSearch => {
-  const result = timelineSchema.safeParse(search)
-  return result.success ? result.data : timelineDefaults
+  const filters = parseSafely(timelineFiltersSchema, search, {
+    groups: [],
+    vendors: [],
+    status: undefined,
+    q: undefined,
+    job: undefined,
+    zoom: undefined,
+  })
+  const fromValue = readDay(search.from)
+  const toValue = readDay(search.to)
+  const legacyLink = search.horizon === undefined
+  const from = fromValue.value ?? timelineDefaults.from
+  const rawTo = toValue.value ?? from + 13
+  const rangeIssue = !fromValue.valid || !toValue.valid
+    ? 'invalid'
+    : toValue.value !== undefined && rawTo < from
+      ? 'reversed'
+      : search.rangeIssue === 'invalid' || search.rangeIssue === 'reversed'
+        ? search.rangeIssue
+        : undefined
+  const to = rangeIssue
+    ? from + 13
+    : legacyLink
+      ? from + 13
+      : rawTo
+
+  return {
+    ...filters,
+    from,
+    to,
+    horizon: typeof search.horizon === 'string' && search.horizon === 'month' ? 'month' : typeof search.horizon === 'string' && search.horizon === '2w' ? '2w' : undefined,
+    ...(rangeIssue ? { rangeIssue } : {}),
+  }
+}
+
+function readDay(value: unknown): { value?: number; valid: boolean } {
+  if (value === undefined) return { valid: true }
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return { value, valid: true }
+  if (typeof value === 'string' && /^\d+$/.test(value)) return { value: Number(value), valid: true }
+  return { valid: false }
 }
 
 export type ReadinessSearch = {

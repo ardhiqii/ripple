@@ -13,3 +13,7 @@ export function resolveApiUrl(path: string, baseUrl: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${baseUrl.trim().replace(/\/+$/, '')}${normalizedPath}`
 }
+
+export function isApiPath(path: string): boolean {
+  return /^\/api\/v1(?:\/|$)/.test(path) || /^https?:\/\/[^/]+\/api\/v1(?:\/|$)/i.test(path)
+}

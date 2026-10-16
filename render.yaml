@@ -11,7 +11,7 @@ services:
     healthCheckPath: /api/v1/health/ready
     envVars:
       - key: RIPPLE_ENVIRONMENT
-        value: staging
+        value: preview
       - key: RIPPLE_DATABASE_URL
         sync: false
       - key: RIPPLE_CORS_ORIGINS

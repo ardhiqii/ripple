@@ -15,6 +15,7 @@ from app.domain.policy import DomainPack
 from app.engine.simulate import Change, ChangeKind, SimulationResult, simulate
 from app.persistence.models import Event, PlanOption, ScheduleState
 from app.persistence.repositories import (
+    DecisionContextSnapshot,
     DecisionRepository,
     EventRepository,
     PlanReadBundle,
@@ -138,6 +139,10 @@ class DecisionService:
             option = self._option(bundle, request.option_id, plan_id)
             self._validate_option(option, request.acknowledged_condition_ids)
             changes = self._parse_changes(option.changes, plan_id)
+            decision_repository = DecisionRepository(self._session)
+            decision_context = await self._decision_context(
+                decision_repository, scenario_id, plan_id
+            )
 
             snapshot = await self._load_snapshot(scenario_id)
             simulation = self._simulate(snapshot, changes, plan_id)
@@ -184,7 +189,6 @@ class DecisionService:
                 schedule_version_before + 1,
                 updated_at=now,
             )
-            decision_repository = DecisionRepository(self._session)
             decision = await decision_repository.create(
                 decision_id=uuid4(),
                 plan_id=plan_id,
@@ -197,6 +201,7 @@ class DecisionService:
                 schedule_version_before=schedule_version_before,
                 schedule_version_after=schedule_version_after,
                 created_at=now,
+                context=decision_context,
             )
             await decision_repository.add_changes(decision.id, audit_changes)
             draft = await decision_repository.create_notification_draft(
@@ -256,6 +261,10 @@ class DecisionService:
                 )
             bundle = await self._locked_plan(scenario_id, plan_id)
             self._require_proposed(bundle, plan_id)
+            decision_repository = DecisionRepository(self._session)
+            decision_context = await self._decision_context(
+                decision_repository, scenario_id, plan_id
+            )
             now = datetime.now(UTC)
             event_id = None
             if request.replan:
@@ -267,7 +276,7 @@ class DecisionService:
                     actor,
                 )
                 event_id = event.id
-            decision = await DecisionRepository(self._session).create(
+            decision = await decision_repository.create(
                 decision_id=uuid4(),
                 plan_id=plan_id,
                 selected_option_id=None,
@@ -279,6 +288,7 @@ class DecisionService:
                 schedule_version_before=int(state.version),
                 schedule_version_after=None,
                 created_at=now,
+                context=decision_context,
             )
             marked = await PlanRepository(self._session).mark_status(
                 plan_id, scenario_id, PlanStatus.REJECTED
@@ -323,6 +333,10 @@ class DecisionService:
                 )
             bundle = await self._locked_plan(scenario_id, plan_id)
             self._require_proposed(bundle, plan_id)
+            decision_repository = DecisionRepository(self._session)
+            decision_context = await self._decision_context(
+                decision_repository, scenario_id, plan_id
+            )
             now = datetime.now(UTC)
             event = await self._create_linked_event(
                 scenario_id,
@@ -331,7 +345,7 @@ class DecisionService:
                 request.context,
                 actor,
             )
-            decision = await DecisionRepository(self._session).create(
+            decision = await decision_repository.create(
                 decision_id=uuid4(),
                 plan_id=plan_id,
                 selected_option_id=None,
@@ -343,6 +357,7 @@ class DecisionService:
                 schedule_version_before=int(state.version),
                 schedule_version_after=None,
                 created_at=now,
+                context=decision_context,
             )
             response = DecisionMutationResponse(
                 decision_id=decision.id,
@@ -367,6 +382,22 @@ class DecisionService:
         if bundle is None:
             raise self._not_found("plan", plan_id)
         return bundle
+
+    @staticmethod
+    async def _decision_context(
+        repository: DecisionRepository,
+        scenario_id: str,
+        plan_id: UUID,
+    ) -> DecisionContextSnapshot:
+        context = await repository.context_for_plan(plan_id, scenario_id)
+        if context is None:
+            raise ApplicationError(
+                409,
+                "decision_context_unavailable",
+                "The plan has no verifiable decision context.",
+                details={"plan_id": str(plan_id)},
+            )
+        return context
 
     async def _lock_schedule_state(self, scenario_id: str) -> ScheduleState:
         state = await ScheduleRepository(self._session).lock_state_for_update(scenario_id)

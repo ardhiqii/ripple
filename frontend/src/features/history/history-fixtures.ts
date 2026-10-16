@@ -4,54 +4,76 @@ import { createHistoryViewData, type HistoryRecordContext } from './history-data
 
 type DecisionDetailResponse = components['schemas']['DecisionDetailResponse']
 type DecisionListResponse = components['schemas']['DecisionListResponse']
+type DecisionSummaryResponse = components['schemas']['DecisionSummaryResponse']
 
 const approvedId = '00000000-0000-0000-0000-000000000401'
 const rejectedId = '00000000-0000-0000-0000-000000000402'
 const replyId = '00000000-0000-0000-0000-000000000403'
 
+const historyDecisions: DecisionSummaryResponse[] = [
+  {
+    id: approvedId,
+    plan_id: '00000000-0000-0000-0000-000000000201',
+    event_id: '00000000-0000-0000-0000-000000000012',
+    event_nature: 'disruption',
+    event_cause: 'Vendor ETA moved after a seal finding.',
+    context_status: 'captured',
+    job_ids: ['A-12'],
+    plan_version: 3,
+    selected_option_id: 'option-a12-1',
+    action: 'approve',
+    actor: 'planner.demo',
+    reason: 'Move A-12 after the vendor confirmation.',
+    category: 'operational_change',
+    acknowledged_condition_ids: ['test-bay-ready'],
+    schedule_version_before: 12,
+    schedule_version_after: 13,
+    created_at: '2026-09-29T10:30:00Z',
+  },
+  {
+    id: rejectedId,
+    plan_id: '00000000-0000-0000-0000-000000000202',
+    event_id: '00000000-0000-0000-0000-000000000013',
+    event_nature: 'disruption',
+    event_cause: 'D-07 vendor delay and seal finding.',
+    context_status: 'captured',
+    job_ids: ['D-07'],
+    plan_version: 1,
+    selected_option_id: null,
+    action: 'reject',
+    actor: 'planner.demo',
+    reason: 'The test bay constraint is not confirmed.',
+    category: 'constraint',
+    acknowledged_condition_ids: [],
+    schedule_version_before: 13,
+    schedule_version_after: null,
+    created_at: '2026-09-29T12:00:00Z',
+  },
+  {
+    id: replyId,
+    plan_id: '00000000-0000-0000-0000-000000000204',
+    event_id: '00000000-0000-0000-0000-000000000015',
+    event_nature: 'disruption',
+    event_cause: 'Planner requested a replan around the seal risk.',
+    context_status: 'captured',
+    job_ids: ['D-07'],
+    plan_version: 2,
+    selected_option_id: null,
+    action: 'reply',
+    actor: 'planner.ops',
+    reason: 'Keep E-02 unchanged; replan D-07 around the seal risk.',
+    category: 'new_context',
+    acknowledged_condition_ids: [],
+    schedule_version_before: 13,
+    schedule_version_after: null,
+    created_at: '2026-09-30T08:15:00Z',
+  },
+]
+
 export const historyListFixture = {
-  decisions: [
-    {
-      id: approvedId,
-      plan_id: '00000000-0000-0000-0000-000000000201',
-      selected_option_id: 'option-a12-1',
-      action: 'approve',
-      actor: 'planner.demo',
-      reason: 'Move A-12 after the vendor confirmation.',
-      category: 'operational_change',
-      acknowledged_condition_ids: ['test-bay-ready'],
-      schedule_version_before: 12,
-      schedule_version_after: 13,
-      created_at: '2026-09-29T10:30:00Z',
-    },
-    {
-      id: rejectedId,
-      plan_id: '00000000-0000-0000-0000-000000000202',
-      selected_option_id: null,
-      action: 'reject',
-      actor: 'planner.demo',
-      reason: 'The test bay constraint is not confirmed.',
-      category: 'constraint',
-      acknowledged_condition_ids: [],
-      schedule_version_before: 13,
-      schedule_version_after: null,
-      created_at: '2026-09-29T12:00:00Z',
-    },
-    {
-      id: replyId,
-      plan_id: '00000000-0000-0000-0000-000000000204',
-      selected_option_id: null,
-      action: 'reply',
-      actor: 'planner.ops',
-      reason: 'Keep E-02 unchanged; replan D-07 around the seal risk.',
-      category: 'new_context',
-      acknowledged_condition_ids: [],
-      schedule_version_before: 13,
-      schedule_version_after: null,
-      created_at: '2026-09-30T08:15:00Z',
-    },
-  ],
+  decisions: historyDecisions,
   next_cursor: null,
+  total_count: 3,
 } satisfies DecisionListResponse
 
 const contextById: Record<string, HistoryRecordContext> = {
@@ -98,6 +120,10 @@ const contextById: Record<string, HistoryRecordContext> = {
 export const historyDetailFixtures = {
   [approvedId]: {
     ...historyListFixture.decisions[0],
+    event_id: '00000000-0000-0000-0000-000000000012',
+    event_nature: 'disruption',
+    job_ids: ['A-12'],
+    plan_version: 3,
     changes: [
       {
         decision_id: approvedId,
@@ -112,10 +138,18 @@ export const historyDetailFixtures = {
   },
   [rejectedId]: {
     ...historyListFixture.decisions[1],
+    event_id: '00000000-0000-0000-0000-000000000013',
+    event_nature: 'disruption',
+    job_ids: ['D-07'],
+    plan_version: 1,
     changes: [],
   },
   [replyId]: {
     ...historyListFixture.decisions[2],
+    event_id: '00000000-0000-0000-0000-000000000015',
+    event_nature: 'disruption',
+    job_ids: ['D-07'],
+    plan_version: 2,
     changes: [],
   },
 } satisfies Record<string, DecisionDetailResponse>

@@ -40,6 +40,7 @@ async def list_events(
     session: AsyncSession = Depends(get_db_session),  # noqa: B008
     nature: EventNature | None = Query(default=None),  # noqa: B008
     state: EventState | None = Query(default=None),  # noqa: B008
+    job_id: str | None = Query(default=None, max_length=128),  # noqa: B008
     q: str | None = Query(default=None, max_length=200),  # noqa: B008
     limit: int = Query(default=50, ge=1, le=100),  # noqa: B008
     after: str | None = Query(default=None, max_length=512),  # noqa: B008
@@ -48,6 +49,7 @@ async def list_events(
         scenario_id_from_request(request),
         nature=nature,
         state=state,
+        job_id=job_id,
         search=q,
         limit=limit,
         after=after,
@@ -88,8 +90,17 @@ async def start_event_extraction(
     session: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> ExtractionStartResponse:
     require_capability(request, "planner.write")
+    settings = getattr(request.app.state, "settings", None)
+    environment = getattr(settings, "environment", "local")
+    synthetic_preview_enabled = getattr(
+        settings, "synthetic_preview_extraction_enabled", True
+    )
     return await EventService(session, OFFSHORE_PACK).start_extraction(
-        scenario_id_from_request(request), event_id
+        scenario_id_from_request(request),
+        event_id,
+        environment=environment,
+        synthetic_preview_enabled=synthetic_preview_enabled,
+        settings=settings,
     )
 
 

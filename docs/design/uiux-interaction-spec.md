@@ -14,6 +14,7 @@ This document defines what every screen, component, control, and cross-page tran
 - This file defines interaction contracts and integration behavior.
 - FastAPI OpenAPI remains the source of truth for network payloads.
 - If a button behavior in a mock conflicts with this file, this file wins until the team explicitly changes the decision.
+- For FE-15+/BE-16+/INT-10+ synthetic-preview packets, the [INT-10 frozen contract](../implementation/productization-plan.md) supersedes this document's older unversioned `/api/...` paths, multi-entity command search, Alerts/Daily Check controls, upload, and reset-all language. Only `/api/v1` routes generated from FastAPI OpenAPI are implementation contracts.
 
 Every interactive control must answer seven questions:
 
@@ -115,9 +116,9 @@ Agent runs continue on the server. Leaving an active run does not require confir
 | `/changes/$eventId` | Events + plans | Event under analysis | `tab`, `run`, `option`, `compare` |
 | `/decisions/$planId` | Plans + decisions | Plan version | `tab`, `option`, `compare`, `evidence` |
 | `/history` | Decisions feature | Decision audit list | `action`, `nature`, `job`, `actor`, `from`, `to`, `decision` |
-| `/alerts` | Alerts feature | Alert queue | `severity`, `type`, `state`, `alert` |
+| `/alerts` | MVP-off; no route/control rendered | — | — |
 | `/settings/policy` | Policy feature | Domain pack | `section`, `lever`, `source` |
-| `/demo` | Demo feature | Seed scenario | `scenario`, `mode`, `step` |
+| `/demo` | Demo feature | Seed scenario | root `scenario`, `mode`, `step` |
 
 Rules:
 
@@ -125,6 +126,7 @@ Rules:
 - Short-lived selection belongs in search state only if restoring it after refresh is useful.
 - Hover, temporary expanded rows, and unsent form content stay local.
 - Route state must be validated before components consume it.
+- The validated root `scenario` parameter is retained across every route; it is not page-local Demo state. Unknown scenario IDs show an error and never fall back to A-12.
 
 ## 4. Global shell interaction contract
 
@@ -133,7 +135,7 @@ Rules:
 Data dependencies:
 
 - Application name and active scenario.
-- Unresolved alert count.
+- No Alerts badge while Alerts UI is MVP-off.
 - Current agent run count.
 - Demo mode flag.
 
@@ -147,30 +149,18 @@ Controls:
 | Changes tab | None | Navigate `/changes` | Inbox opens; badge shows active work | No network dependency |
 | History tab | None | Navigate `/history` | History opens | No network dependency |
 | Search | App ready | Open `CommandSearch` | Search dialog focused | If index load fails, page navigation still works |
-| Alerts | None | Navigate `/alerts` | Alert filters default to unresolved | Count fetch error shows neutral dot, not zero |
+| Alerts | MVP-off | Not rendered | — | — |
 | Ask Ripple | Page exposes context or generic mode | Open `RipplePanel` | Panel receives active context chips | Panel loads with retry state if dependencies fail |
 | Reset demo | Demo mode | Open confirmation | Reset mutation only after confirmation | Dialog remains with error and retry |
 | Environment menu | None | Open menu | Policy and scenario links visible | Local control only |
 
 ### 4.2 `CommandSearch`
 
-Search groups:
-
-- Pages.
-- Jobs.
-- Resources.
-- Change events.
-- Decisions.
-- Actions permitted in current context.
+Search group in the MVP: pages only. Label the control “Find a page.” Entity search stays on its owning page until a cross-entity index is explicitly contracted.
 
 Selection behavior:
 
-- Page result navigates directly.
-- Job result navigates to `/timeline?job={id}`.
-- Resource result navigates to its timeline group and row.
-- Event result navigates to `/changes/{eventId}`.
-- Decision result navigates to `/decisions/{planId}`.
-- `New change` opens the change composer.
+- Page result navigates while retaining the validated root scenario and dropping unrelated page-local filters.
 
 The command palette never mutates schedule data.
 
@@ -216,8 +206,7 @@ The panel never directly updates parent-page domain data. It emits IDs and the q
 | Decision approval | View applied result | Timeline | changed job IDs and decision ID | New positions highlighted |
 | Decision approval | Review readiness result | Readiness | affected item IDs and decision ID | Changed items highlighted |
 | History row | Audit decision | Decision detail | `planId` | Read-only audit mode |
-| Alert row | Investigate | Alert drawer | `alertId` | Evidence and affected objects load |
-| Alert drawer | Start replan | Ripple panel | alert, affected objects | Submit change mode with alert source |
+| Alert row/drawer | MVP-off | Not rendered | — | — |
 | Policy lever | View decisions using lever | History | Future feature, hidden in MVP | No dead control is rendered |
 | Demo scenario | Start guided run | Changes or split demo | scenario ID | Data reset or confirmed reuse, then run starts |
 
@@ -254,24 +243,28 @@ Derived data:
 
 ### 6.3 Toolbar controls
 
+**Latest live Timeline amendment (2026-10-16):** [compact Timeline/navigation §3](../implementation/timeline-density-navigation.md#3-horizon-date-state-and-horizontal-pan-contract) controls the current local/preview implementation. Direct horizontal scroll/pan is primary across fetched period boundaries. `2 weeks` and calendar-aligned `Month` are explicit horizons; previous/next moves by the active horizon, and month/year picker plus Today provide jumps. This supersedes the earlier month-only navigation sentence in [Timeline/Gemini follow-up §2](../implementation/timeline-gemini-followup.md#2-timeline-layout-and-interaction-contract). The older generic range/zoom/export rows below describe optional or historical controls, not a mandate to show unimplemented buttons. The vendor filter is hidden because the live API has no vendor field. Do not treat drag-to-pan on empty canvas as schedule drag editing.
+
 | Control | Type | Action | URL effect | Query effect |
 |---|---|---|---|---|
-| Previous range | Icon button | Shift window backward by visible span | Replace `from`, `to` | Fetch new schedule range |
-| Today | Button | Center scenario day 0 | Replace `from`, `to` | Fetch if range differs |
-| Next range | Icon button | Shift window forward | Replace `from`, `to` | Fetch new schedule range |
+| Previous period | Icon button | Shift 14 days in `2 weeks`, one calendar month in `Month` | Replace `from`, `to`; retain `horizon` | Fetch bounded adjacent range |
+| Today / Scenario start | Button | Jump to actual today only when within the scenario horizon; otherwise day zero | Replace `from`, `to` | Fetch if range differs; never invent a calendar month |
+| Next period | Icon button | Shift 14 days in `2 weeks`, one calendar month in `Month` | Replace `from`, `to`; retain `horizon` | Fetch bounded adjacent range |
 | Date range | Popover | Select start and end | Replace `from`, `to` | Fetch new range |
 | Zoom | Segmented control | Compact, Standard, Detailed | Replace `zoom` | No refetch; recompute layout |
 | Resources | Multi-select | Show/hide resource groups | Replace `groups` | Refetch or local filter based on API |
-| Vendors | Multi-select | Filter vendor ownership | Replace `vendors` | Prefer local filter when complete data loaded |
+| Vendors | Hidden until a typed vendor field exists | Never infer vendor from resource group | None in current live view | No fake local filter |
 | Status | Multi-select | Filter activity state | Replace `status` | Prefer local filter |
 | Fit range | Icon button | Calculate day width to fit | Replace `zoom=fit` | No refetch |
 | Export | Dropdown | PNG or CSV when supported | None | Lazy action, never blocks timeline |
 
 ### 6.4 Timeline block interactions
 
+For current live API data, a block has no vendor identity; omit vendor from tooltip rather than guessing. Concurrent bookings occupy distinct sublanes, while maintenance/unavailable sits in an aligned exception rail. Empty-grid pointer drag pans dates after a movement threshold; block click and keyboard inspection remain unchanged.
+
 | Input | Behavior |
 |---|---|
-| Pointer hover | Show tooltip with code, type, range, resource, vendor, status, readiness risk |
+| Pointer hover | Show tooltip with code, type, range, resource, status, readiness risk, and vendor **only if typed vendor data exists** |
 | Click | Set `job` search param and open inspector |
 | Enter or Space | Same as click |
 | Shift-click | Add to two-item comparison selection |
@@ -409,7 +402,7 @@ Buttons:
 
 | Button | Behavior |
 |---|---|
-| New change | Opens paste/upload sheet |
+| New change | Opens paste-text intake sheet; upload is MVP-off |
 | Run sample | Opens sample menu in demo mode |
 | Refresh | Refetches inbox without losing filters |
 | Saved views | Off for MVP; do not render |
@@ -704,6 +697,8 @@ No audit item can be edited. Corrections create a new linked record.
 
 ## 11. Screen 6: Alerts and Daily Check contract
 
+Post-MVP reference only. No Alerts route, badge, or daily-check control is rendered in the synthetic preview.
+
 ### 11.1 Alert states
 
 ```text
@@ -774,20 +769,20 @@ No fake `Reconnect` button is shown unless an actual integration exists.
 | Run scenario | Confirm reset if current state differs, then seed and start |
 | Run recorded | Use fixtures and recorded SSE without backend model dependency |
 | Compare A-12 pair | Enter split mode with synchronized baseline context |
-| Reset all demo data | Destructive confirmation, reset endpoint, clear all caches |
+| Reset selected scenario | Confirm scenario ID/seed version and shared-preview impact; reset only that scenario, then clear its caches |
 
 ### 13.2 Reset transaction
 
 Before reset:
 
-- Explain that all prototype schedule, readiness, events, plans, and decisions return to seed state.
+- Explain that schedule, readiness, events, plans, and decisions in the **selected synthetic scenario only** return to seed state; other preview testers of that scenario will see the reset.
 - Require explicit confirmation.
 - Disable duplicate submission.
 
 After success:
 
-- Clear Query cache rather than only invalidating it.
-- Clear local drafts, comparison selection, one-time highlights, and active run registry.
+- Clear only the selected scenario's Query cache rather than only invalidating it.
+- Clear that scenario's local drafts, comparison selection, one-time highlights, and active run registry.
 - Navigate to the selected scenario start page.
 - Show seed version or scenario name in the global header.
 
@@ -862,20 +857,21 @@ open -> acknowledged -> investigating -> resolved
 
 | UI control | API or client action | Pending state | Success cache effect | Failure state |
 |---|---|---|---|---|
-| Review change | `POST /api/events` | `Saving source...` | Add event detail and inbox row | Preserve input, inline error |
-| Save extraction correction | Event patch endpoint required or include before run | `Saving...` | Update event detail and inbox | Keep correction draft |
-| Start investigation | `POST /api/agent/run` through SSE client | Live run header | Stream updates event and plan caches | Partial trace plus retry |
-| Retry run | Same run endpoint or new run contract | `Retrying...` | Replace active run reference, retain failed run audit | Retain old trace |
-| Tick readiness | `PATCH /api/readiness/{itemId}` | Inline checkbox pending | Invalidate readiness summary and alerts | Roll back checkbox |
-| Accept readiness suggestion | Readiness update endpoint | Dialog pending | Invalidate readiness, schedule risk, alerts | Keep dialog and proposed diff |
-| Reject readiness suggestion | Suggestion status endpoint required | `Rejecting...` | Remove from pending count | Keep dialog on failure |
-| Approve option | `POST /api/plans/{id}/approve` | `Validating and applying...` | Invalidate schedule, readiness, plan, event, decisions, alerts | Version conflict or retryable error |
-| Reject plan | `POST /api/plans/{id}/reject` | `Rejecting...` | Update plan/event/history | Preserve reason on failure |
-| Reply and replan | `POST /api/plans/{id}/reply`, then run | `Creating replan...` | Add linked event/run and version lineage | Preserve reply text |
-| Reset demo | `POST /api/demo/reset` | `Resetting demo...` | Clear query cache and local scenario state | Keep current state |
-| Run daily check | `POST /api/agent/daily-check` in hidden/demo control | `Checking...` | Invalidate alerts and events | Show health error |
+| Review change | `POST /api/v1/events` | `Saving source...` | Add server event ID to detail and inbox | Preserve input, inline error |
+| Start extraction | `POST /api/v1/events/{eventId}/extract` | `Reading input...` | Refresh extraction state; review before run | Keep source and show retry/error |
+| Save extraction correction | `PATCH /api/v1/events/{eventId}/extraction` | `Saving...` | Update server detail and inbox | Keep correction draft |
+| Start investigation | `POST /api/v1/events/{eventId}/runs`, then `GET /api/v1/runs/{runId}/stream` | Live run header | Stream updates event and plan caches | Partial trace plus retry |
+| Retry run | New run on the same extraction-ready event, only after prior attempt outcome is known | `Retrying...` | Retain failed run audit and link new run ID | Retain old trace |
+| Tick readiness | `PATCH /api/v1/readiness/{itemId}` | Inline row pending | Invalidate readiness and affected schedule risk | Roll back/refetch row |
+| Accept readiness suggestion | `POST /api/v1/readiness/suggestions/{suggestionId}/accept` | Dialog pending | Invalidate readiness, schedule risk, linked event | Keep dialog and proposed diff |
+| Reject readiness suggestion | `POST /api/v1/readiness/suggestions/{suggestionId}/reject` | `Rejecting...` | Refresh suggestion and queue | Keep dialog on failure |
+| Approve option | `POST /api/v1/plans/{id}/approve` | `Validating and applying...` | Invalidate schedule, readiness, plan, event, decisions | On 409, require recompute and manual re-review; never force apply |
+| Reject plan | `POST /api/v1/plans/{id}/reject` | `Rejecting...` | Update plan/event/history | Preserve reason on failure |
+| Reply and replan | `POST /api/v1/plans/{id}/reply`; start a run only after linked event is extraction-ready | `Creating reply...` | Add linked event/version lineage | Preserve reply text; do not claim run started prematurely |
+| Ask Ripple | `POST /api/v1/ask` (BE-21 contract), read-only | `Finding evidence...` | Show answer/evidence/freshness; no operational invalidation | Show truthful unavailable/error; no fake answer |
+| Reset selected synthetic scenario | `POST /api/v1/demo/reset` with matching scenario header/body | `Resetting scenario...` | Clear only that scenario's caches/drafts/runs | Keep current state and show error |
 
-Missing-contract note: the existing technical plan does not explicitly define endpoints for extraction correction, readiness suggestion rejection, and alert state changes. Before implementation, either add these endpoints to OpenAPI or remove the corresponding write controls. Never ship controls backed only by local state when they imply an audited business action.
+Alerts and Daily Check are MVP-off, so no control or API call for them is rendered. All listed paths must be confirmed by generated FastAPI OpenAPI before use; `POST /api/v1/ask` is a frozen **target** contract until BE-21 implements it. Never ship controls backed only by local state when they imply an audited business action.
 
 ## 16. Query invalidation matrix
 

@@ -10,6 +10,7 @@ from app.config import Settings
 from app.observability.metrics import MetricsRegistry, default_metrics
 from app.observability.tracing import trace_span
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 
@@ -49,7 +50,15 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         trace_id = _parse_uuid(request.headers.get("X-Trace-ID"), correlation_id)
         received_at = datetime.now(UTC)
         actor_id = request.headers.get("X-Actor-ID", self.settings.demo_actor_id)
-        scenario_id = request.headers.get("X-Scenario-ID", self.settings.demo_scenario_id)
+        scenario_header = request.headers.get("X-Scenario-ID")
+        scenario_id = (
+            self.settings.demo_scenario_id
+            if scenario_header is None
+            else scenario_header.strip()
+        )
+        allowed_scenarios = {self.settings.demo_scenario_id}
+        if self.settings.environment in {"local", "preview"}:
+            allowed_scenarios.add("fleet-scale")
         capabilities = set(self.settings.demo_capabilities)
         request.state.context = RequestContext(
             request_id=request_id,
@@ -72,7 +81,23 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         started = time.perf_counter()
         status_code = 500
         try:
-            if request_size > self.settings.request_size_limit_bytes:
+            if scenario_id not in allowed_scenarios:
+                status_code = 404
+                response = JSONResponse(
+                    status_code=404,
+                    content={
+                        "error": {
+                            "code": "unknown_scenario",
+                            "message": (
+                                "The requested scenario is not available in this environment."
+                            ),
+                            "request_id": str(request_id),
+                            "retryable": False,
+                            "details": {"scenario_id": scenario_id},
+                        }
+                    },
+                )
+            elif request_size > self.settings.request_size_limit_bytes:
                 response = Response(status_code=413, content="Request body is too large")
             else:
                 with trace_span(

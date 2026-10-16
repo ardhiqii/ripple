@@ -142,7 +142,11 @@ class WorkflowToolbox:
 
     def check_capacity(self, *, resource_id: str | None = None) -> Mapping[str, object]:
         self._reserve("check_capacity")
-        reports = calculate_all_capacity(self.snapshot.resources, self.snapshot.bookings)
+        reports = calculate_all_capacity(
+            self.snapshot.resources,
+            self.snapshot.bookings,
+            self.snapshot.unavailability,
+        )
         result = {
             "resources": tuple(
                 {
@@ -323,7 +327,11 @@ class WorkflowToolbox:
 
     def _validate_solver_snapshot(self, candidate: ScheduleSnapshot) -> SimulationResult:
         validation = simulate(candidate, [], self.pack)
-        capacity_reports = calculate_all_capacity(candidate.resources, candidate.bookings)
+        capacity_reports = calculate_all_capacity(
+            candidate.resources,
+            candidate.bookings,
+            candidate.unavailability,
+        )
         return replace(
             validation,
             kpi_delta=_kpi_delta(self.snapshot, candidate, capacity_reports),

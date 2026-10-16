@@ -36,6 +36,10 @@ from app.persistence.models import (
 )
 from app.streaming.sse import format_sse
 from pydantic import Field, field_validator
+from scripts.seed_preview import install_fleet_scale, reset_fleet_scale
+from seed.fleet_scale import SCENARIO_ID as FLEET_SCENARIO_ID
+from seed.fleet_scale import SEED_VERSION as FLEET_SEED_VERSION
+from seed.fleet_scale import manifest as fleet_manifest
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +48,12 @@ SEED_VERSION = "offshore-a12-v1"
 SEED_SCHEDULE_VERSION = 1
 _SUPPORTED_MODES = frozenset({"live", "recorded", "full"})
 _FIXTURE_FILES = {DEMO_SCENARIO_ID: "a12_base.json"}
+
+
+def _source_only_seed_value(value: str) -> str:
+    """Keep source-manifest values distinct from unknown installed state."""
+
+    return f"source:{value};installed:unknown"
 
 
 class DemoResetRequest(ApiModel):
@@ -71,6 +81,8 @@ class DemoScenarioResponse(ApiModel):
     seed_checksum: str
     available: bool
     mode: str
+    scenario_start_date: str
+    reset_allowed: bool
 
 
 class DemoScenariosResponse(ApiModel):
@@ -127,17 +139,39 @@ class DemoService:
 
     def scenarios(self, *, environment: str, demo_scenario_id: str) -> DemoScenariosResponse:
         mode = self.mode(environment=environment)
-        checksum = self.seed_checksum()
         scenario = DemoScenarioResponse(
             scenario_id=demo_scenario_id,
             name="A-12 base disruption",
             description="Synthetic offshore vendor-delay scenario for the demo.",
             seed_version=SEED_VERSION,
-            seed_checksum=checksum,
+            seed_checksum=self.seed_checksum(),
             available=demo_scenario_id == DEMO_SCENARIO_ID,
             mode=mode,
+            scenario_start_date="2026-10-13",
+            reset_allowed=environment != "production",
         )
-        return DemoScenariosResponse(scenarios=(scenario,), mode=mode)
+        scenarios = [scenario]
+        if environment in {"local", "preview"}:
+            fleet = fleet_manifest()
+            scenarios.append(
+                DemoScenarioResponse(
+                    scenario_id=FLEET_SCENARIO_ID,
+                    name="Fleet-scale synthetic source baseline",
+                    description=(
+                        "Source manifest for the deterministic multi-resource planning "
+                        "scenario. This catalog does not assert that an installed database "
+                        "matches the source version; use explicit verify or reset to compare "
+                        "or restore the named scenario."
+                    ),
+                    seed_version=_source_only_seed_value(FLEET_SEED_VERSION),
+                    seed_checksum=_source_only_seed_value(fleet["checksum"]),
+                    available=True,
+                    mode=mode,
+                    scenario_start_date=fleet["scenario_start_date"],
+                    reset_allowed=True,
+                )
+            )
+        return DemoScenariosResponse(scenarios=tuple(scenarios), mode=mode)
 
     async def reset(
         self,
@@ -145,9 +179,20 @@ class DemoService:
         *,
         environment: str,
         demo_scenario_id: str,
+        request_scenario_id: str | None = None,
     ) -> DemoResetResponse:
         self.mode(environment=environment)
-        self._require_demo_scenario(scenario_id, demo_scenario_id)
+        if request_scenario_id is not None and request_scenario_id != scenario_id:
+            raise ApplicationError(
+                400,
+                "scenario_context_mismatch",
+                "The reset body scenario must match the active scenario context.",
+                details={
+                    "body_scenario_id": scenario_id,
+                    "context_scenario_id": request_scenario_id,
+                },
+            )
+        self._require_demo_scenario(scenario_id, demo_scenario_id, environment)
         if environment == "production":
             raise ApplicationError(
                 403,
@@ -160,6 +205,33 @@ class DemoService:
                 "database_unavailable",
                 "Database access is not configured for this API process.",
                 retryable=True,
+            )
+
+        if scenario_id == FLEET_SCENARIO_ID:
+            async with self._session.begin():
+                connection = await self._session.connection()
+                await reset_fleet_scale(connection)
+                await install_fleet_scale(connection)
+                state = await self._session.scalar(
+                    select(ScheduleState).where(ScheduleState.scenario_id == scenario_id)
+                )
+                if state is None:
+                    raise ApplicationError(
+                        404,
+                        "unknown_entity",
+                        "The fleet-scale scenario seed could not be restored.",
+                        details={"scenario_id": scenario_id},
+                    )
+                state.version = 1
+                state.updated_at = datetime.now(UTC)
+                await self._session.flush()
+            fleet = fleet_manifest()
+            return DemoResetResponse(
+                scenario_id=scenario_id,
+                seed_version=FLEET_SEED_VERSION,
+                seed_checksum=fleet["checksum"],
+                schedule_version=1,
+                reset_at=datetime.now(UTC),
             )
 
         async with self._session.begin():
@@ -338,7 +410,13 @@ class DemoService:
                 await self._session.execute(text(sql))
 
     @staticmethod
-    def _require_demo_scenario(scenario_id: str, demo_scenario_id: str) -> None:
+    def _require_demo_scenario(
+        scenario_id: str,
+        demo_scenario_id: str,
+        environment: str,
+    ) -> None:
+        if scenario_id == FLEET_SCENARIO_ID and environment in {"local", "preview"}:
+            return
         if scenario_id != demo_scenario_id or scenario_id != DEMO_SCENARIO_ID:
             raise ApplicationError(
                 403,

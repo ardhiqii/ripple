@@ -27,6 +27,8 @@ describe('demo scenario adapters', () => {
       seed_checksum: 'sha256:seed',
       available: true,
       mode: 'live',
+      scenario_start_date: '2026-10-13',
+      reset_allowed: true,
     })
 
     expect(scenario).toMatchObject({
@@ -51,8 +53,20 @@ describe('demo scenario adapters', () => {
           seed_checksum: 'checksum',
           available: true,
           mode: 'recorded',
+          scenario_start_date: '2026-10-13',
+          reset_allowed: false,
         },
-        { scenario_id: 'unsupported', name: 'Unsupported' },
+        {
+          scenario_id: 'unsupported',
+          name: 'Unsupported',
+          description: 'Unsupported scenario',
+          seed_version: 'unsupported-v1',
+          seed_checksum: 'unsupported-checksum',
+          available: false,
+          mode: 'recorded',
+          scenario_start_date: '2026-10-13',
+          reset_allowed: false,
+        },
       ],
     })
     const receipt = adaptDemoResetResponse({
@@ -71,6 +85,30 @@ describe('demo scenario adapters', () => {
       scheduleVersion: 1,
       resetAt: '2026-10-13T12:00:00Z',
     })
+  })
+
+  it('adapts an available backend-only scenario without inventing a recorded fixture', () => {
+    const scenario = adaptDemoScenario({
+      scenario_id: 'fleet-scale',
+      name: 'Fleet-scale synthetic',
+      description: 'Multi-resource synthetic planning scenario.',
+      seed_version: 'fleet-scale-v1',
+      seed_checksum: 'fleet-checksum',
+      available: true,
+      mode: 'full',
+      scenario_start_date: '2026-10-13',
+      reset_allowed: true,
+    })
+
+    expect(scenario).toMatchObject({
+      id: 'fleet-scale',
+      backendScenarioId: 'fleet-scale',
+      mode: 'full',
+      resetAllowed: true,
+      recordedRunId: '',
+      scenarioStartDate: '2026-10-13',
+    })
+    expect(scenario?.message).toContain('Fleet-scale synthetic')
   })
 })
 

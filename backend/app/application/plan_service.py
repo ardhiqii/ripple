@@ -1,14 +1,20 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from app.application.errors import ApplicationError
 from app.application.schemas import ApiModel
 from app.domain.enums import DecisionAction, PlanStatus, PlanVerdict, SolverStatus
-from app.persistence.models import Decision, DecisionChange, Plan, PlanEvidence, PlanOption
+from app.persistence.models import (
+    Decision,
+    DecisionChange,
+    Plan,
+    PlanEvidence,
+    PlanOption,
+)
 from app.persistence.repositories import (
     DecisionRepository,
     EventRepository,
@@ -122,6 +128,12 @@ class DecisionSummaryResponse(ApiModel):
     schedule_version_before: int | None
     schedule_version_after: int | None
     created_at: datetime
+    event_id: UUID
+    job_ids: tuple[str, ...]
+    plan_version: int
+    event_nature: str | None
+    event_cause: str | None
+    context_status: Literal["captured", "partial_legacy"]
 
 
 class DecisionChangeResponse(ApiModel):
@@ -141,6 +153,7 @@ class DecisionDetailResponse(DecisionSummaryResponse):
 class DecisionListResponse(ApiModel):
     decisions: tuple[DecisionSummaryResponse, ...]
     next_cursor: str | None
+    total_count: int
 
 
 class PlanService:
@@ -241,6 +254,12 @@ class PlanService:
         plan_id: UUID | None,
         limit: int,
         after: str | None,
+        job_id: str | None = None,
+        actor: str | None = None,
+        nature: str | None = None,
+        from_date: date | None = None,
+        to_date: date | None = None,
+        search: str | None = None,
     ) -> DecisionListResponse:
         after_created_at: datetime | None = None
         after_id: UUID | None = None
@@ -249,22 +268,55 @@ class PlanService:
                 after_created_at, after_id = decode_cursor(after)
             except InputBoundaryError as exc:
                 raise ApplicationError(422, "validation_error", str(exc)) from exc
+            if after_created_at.tzinfo is None:
+                raise ApplicationError(422, "validation_error", "cursor is invalid")
+            after_created_at = after_created_at.astimezone(UTC)
+        if from_date is not None and to_date is not None and from_date > to_date:
+            raise ApplicationError(422, "validation_error", "The decision date range is invalid.")
         rows = await DecisionRepository(self._session).list_for_scenario(
             scenario_id,
-            action=action.value if action is not None else None,
-            plan_id=plan_id,
-            after_created_at=after_created_at,
-            after_id=after_id,
-            limit=limit + 1,
+            limit=None,
         )
-        visible = rows[:limit]
+        normalized_search = search.strip().lower() if search and search.strip() else None
+        normalized_job_id = job_id.strip() if job_id and job_id.strip() else None
+        normalized_actor = actor.strip() if actor and actor.strip() else None
+        filtered = tuple(
+            row
+            for row in rows
+            if (action is None or row.action == action.value)
+            and (plan_id is None or row.plan_id == plan_id)
+            and (
+                normalized_job_id is None
+                or normalized_job_id in self._decision_job_ids(row)
+            )
+            and (normalized_actor is None or row.actor == normalized_actor)
+            and (nature is None or row.event_nature == nature)
+            and (from_date is None or self._utc_date(row.created_at) >= from_date)
+            and (to_date is None or self._utc_date(row.created_at) <= to_date)
+            and self._matches_decision_search(row, normalized_search)
+        )
+        total_count = len(filtered)
+        if after_created_at is not None and after_id is not None:
+            filtered = tuple(
+                row
+                for row in filtered
+                if self._utc_datetime(row.created_at) < after_created_at
+                or (
+                    self._utc_datetime(row.created_at) == after_created_at
+                    and row.id < after_id
+                )
+            )
+        visible = filtered[:limit]
         next_cursor = None
-        if len(rows) > limit and visible:
+        if len(filtered) > limit and visible:
             last = visible[-1]
-            next_cursor = encode_cursor(last.created_at, last.id)
+            next_cursor = encode_cursor(self._utc_datetime(last.created_at), last.id)
         return DecisionListResponse(
-            decisions=tuple(self._decision_summary(row) for row in visible),
+            decisions=tuple(
+                self._decision_summary(row) for row in visible
+            ),
             next_cursor=next_cursor,
+            total_count=total_count,
         )
 
     async def decision_detail(
@@ -278,6 +330,39 @@ class PlanService:
             **summary.model_dump(),
             changes=tuple(self._decision_change_response(row) for row in bundle.changes),
         )
+
+    @staticmethod
+    def _matches_decision_search(
+        row: Decision, search: str | None
+    ) -> bool:
+        if search is None:
+            return True
+        return any(
+            search in value.lower()
+            for value in (
+                str(row.id),
+                str(row.plan_id),
+                row.reason or "",
+                row.event_cause or "",
+            )
+        )
+
+    @staticmethod
+    def _decision_job_ids(row: Decision) -> tuple[str, ...]:
+        value = row.job_ids
+        if not isinstance(value, (list, tuple)):
+            return ()
+        return tuple(item for item in value if isinstance(item, str))
+
+    @staticmethod
+    def _utc_datetime(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+    @classmethod
+    def _utc_date(cls, value: datetime) -> date:
+        return cls._utc_datetime(value).date()
 
     @staticmethod
     def _validate_draft(draft: PlanDraft) -> UUID | None:
@@ -452,6 +537,20 @@ class PlanService:
         condition_ids = row.acknowledged_condition_ids
         if not isinstance(condition_ids, list):
             condition_ids = []
+        if row.event_id is None or row.plan_version is None:
+            raise ApplicationError(
+                500,
+                "integrity_error",
+                "The decision immutable context is incomplete.",
+                details={"decision_id": str(row.id)},
+            )
+        if row.context_status not in {"captured", "partial_legacy"}:
+            raise ApplicationError(
+                500,
+                "integrity_error",
+                "The decision immutable context status is invalid.",
+                details={"decision_id": str(row.id)},
+            )
         return DecisionSummaryResponse(
             id=row.id,
             plan_id=row.plan_id,
@@ -464,6 +563,14 @@ class PlanService:
             schedule_version_before=row.schedule_version_before,
             schedule_version_after=row.schedule_version_after,
             created_at=row.created_at or datetime.now(UTC),
+            event_id=row.event_id,
+            job_ids=PlanService._decision_job_ids(row),
+            plan_version=row.plan_version,
+            event_nature=row.event_nature,
+            event_cause=row.event_cause,
+            context_status=cast(
+                Literal["captured", "partial_legacy"], row.context_status
+            ),
         )
 
     @staticmethod
@@ -484,13 +591,13 @@ class PlanService:
 
     @staticmethod
     def _mappings(value: object) -> tuple[dict[str, Any], ...]:
-        if not isinstance(value, list):
+        if not isinstance(value, (list, tuple)):
             return ()
         return tuple(dict(item) for item in value if isinstance(item, Mapping))
 
     @staticmethod
     def _sequence(value: object) -> tuple[Any, ...]:
-        return tuple(value) if isinstance(value, list) else ()
+        return tuple(value) if isinstance(value, (list, tuple)) else ()
 
     @staticmethod
     def _not_found(entity: str, entity_id: UUID) -> ApplicationError:

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { ApiError, apiTransport, createApiTransport } from '@/api/transport'
 import type { components } from '@/api/generated/openapi'
-import { apiUrl } from '@/api/url'
 
 type DecisionAction = components['schemas']['DecisionAction']
 type DecisionDetailResponse = components['schemas']['DecisionDetailResponse']
@@ -10,6 +10,12 @@ type DecisionListResponse = components['schemas']['DecisionListResponse']
 export type HistoryApiFilters = Readonly<{
   action?: DecisionAction
   planId?: string
+  jobId?: string
+  actor?: string
+  nature?: string
+  from?: string
+  to?: string
+  q?: string
   after?: string
   limit?: number
 }>
@@ -18,64 +24,92 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 
 export class HistoryApiError extends Error {
   readonly status: number
+  readonly code: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code = `http_${status}`) {
     super(message)
     this.name = 'HistoryApiError'
     this.status = status
+    this.code = code
   }
 }
 
 const defaultFetcher: Fetcher = (input, init) => globalThis.fetch(input, init)
 
-export async function fetchDecisionList(filters: HistoryApiFilters = {}, fetcher: Fetcher = defaultFetcher): Promise<DecisionListResponse> {
-  const params = new URLSearchParams()
-  if (filters.action) params.set('action', filters.action)
-  if (filters.planId) params.set('plan_id', filters.planId)
-  if (filters.after) params.set('after', filters.after)
-  params.set('limit', String(Math.min(Math.max(filters.limit ?? 100, 1), 100)))
-  const query = params.toString()
-  const response = await fetcher(apiUrl(`/api/v1/decisions${query ? `?${query}` : ''}`), { headers: { Accept: 'application/json' } })
-  return readResponse<DecisionListResponse>(response, 'Decision history could not be loaded.')
+export async function fetchDecisionList(filters: HistoryApiFilters = {}, afterOrFetcher?: string | Fetcher, fetcher: Fetcher = defaultFetcher): Promise<DecisionListResponse> {
+  const after = typeof afterOrFetcher === 'string' ? afterOrFetcher : filters.after
+  const requestFetcher = typeof afterOrFetcher === 'function' ? afterOrFetcher : fetcher
+  const params = historyParams(filters, after)
+  try {
+    return await createApiTransport({ fetcher: requestFetcher }).get<DecisionListResponse>(`/api/v1/decisions?${params.toString()}`)
+  } catch (error) {
+    throw toHistoryApiError(error, 'Decision history could not be loaded.')
+  }
+}
+
+/** Fetch every server cursor page so filters, totals, and the rendered table share one scope. */
+export async function fetchAllDecisionPages(filters: HistoryApiFilters = {}, fetcher: Fetcher = defaultFetcher): Promise<DecisionListResponse> {
+  const decisions: unknown[] = []
+  let after: string | undefined
+  let last: DecisionListResponse | undefined
+  const cursors = new Set<string>()
+  let next: string | undefined
+  do {
+    if (after && cursors.has(after)) throw new HistoryApiError(502, 'Decision history returned a repeated cursor.', 'cursor_cycle')
+    if (after) cursors.add(after)
+    last = await fetchDecisionList(filters, after, fetcher)
+    const values = Array.isArray(last.decisions) ? last.decisions : []
+    decisions.push(...values)
+    next = typeof last.next_cursor === 'string' && last.next_cursor ? last.next_cursor : undefined
+    after = next
+  } while (next)
+  return {
+    decisions: decisions as DecisionListResponse['decisions'],
+    next_cursor: null,
+    total_count: last?.total_count ?? decisions.length,
+  }
 }
 
 export async function fetchDecisionDetail(decisionId: string, fetcher: Fetcher = defaultFetcher): Promise<DecisionDetailResponse> {
-  const response = await fetcher(apiUrl(`/api/v1/decisions/${encodeURIComponent(decisionId)}`), { headers: { Accept: 'application/json' } })
-  return readResponse<DecisionDetailResponse>(response, 'Audit detail could not be loaded.')
+  try {
+    return await createApiTransport({ fetcher }).get<DecisionDetailResponse>(`/api/v1/decisions/${encodeURIComponent(decisionId)}`)
+  } catch (error) {
+    throw toHistoryApiError(error, 'Audit detail could not be loaded.')
+  }
 }
 
 export function useDecisionHistory(filters: HistoryApiFilters = {}) {
   return useQuery({
-    queryKey: ['history', 'decisions', filters],
+    queryKey: apiTransport.queryKey('history', 'decisions', filters),
     queryFn: () => fetchDecisionList(filters),
   })
 }
 
 export function useDecisionAudit(decisionId?: string) {
   return useQuery({
-    queryKey: ['history', 'decision', decisionId],
+    queryKey: apiTransport.queryKey('history', 'decision', decisionId),
     queryFn: () => fetchDecisionDetail(decisionId!),
     enabled: Boolean(decisionId),
   })
 }
 
-async function readResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
-  let payload: unknown
-  try {
-    payload = await response.json()
-  } catch {
-    payload = undefined
-  }
-  if (!response.ok) {
-    const message = readMessage(payload) ?? fallbackMessage
-    throw new HistoryApiError(response.status, message)
-  }
-  return payload as T
+function historyParams(filters: HistoryApiFilters, after?: string): URLSearchParams {
+  const params = new URLSearchParams()
+  if (filters.action) params.set('action', filters.action)
+  if (filters.planId?.trim()) params.set('plan_id', filters.planId.trim())
+  if (filters.jobId?.trim()) params.set('job_id', filters.jobId.trim())
+  if (filters.actor?.trim()) params.set('actor', filters.actor.trim())
+  if (filters.nature?.trim()) params.set('nature', filters.nature.trim())
+  if (filters.from) params.set('from', filters.from)
+  if (filters.to) params.set('to', filters.to)
+  if (filters.q?.trim()) params.set('q', filters.q.trim())
+  if (after) params.set('after', after)
+  params.set('limit', String(Math.min(Math.max(filters.limit ?? 50, 1), 100)))
+  return params
 }
 
-function readMessage(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const root = value as Record<string, unknown>
-  const error = root.error && typeof root.error === 'object' && !Array.isArray(root.error) ? root.error as Record<string, unknown> : root
-  return typeof error.message === 'string' ? error.message : typeof root.detail === 'string' ? root.detail : undefined
+function toHistoryApiError(error: unknown, fallbackMessage: string): HistoryApiError {
+  if (error instanceof HistoryApiError) return error
+  if (error instanceof ApiError) return new HistoryApiError(error.status, error.message || fallbackMessage, error.code)
+  return new HistoryApiError(0, error instanceof Error && error.message ? error.message : fallbackMessage)
 }

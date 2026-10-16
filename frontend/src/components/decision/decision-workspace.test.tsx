@@ -33,6 +33,14 @@ describe('DecisionWorkspace', () => {
     expect(screen.getByText('Test bay is not ready.')).toBeInTheDocument()
   })
 
+  it('does not fall back when the route points to an unknown option', () => {
+    const data = planWorkspaceById('00000000-0000-0000-0000-000000000201')
+    render(<DecisionWorkspace data={data} selectedOptionId="missing-option" compareIds={[]} activeTab="overview" onSelectOption={vi.fn()} onCompareChange={vi.fn()} onTabChange={vi.fn()} onEvidenceChange={vi.fn()} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('option in this link is no longer available')
+    expect(screen.getByText('Select a feasible option to review its impact.')).toBeInTheDocument()
+  })
+
   it('returns focus to the evidence trigger after the evidence sheet closes', async () => {
     const user = userEvent.setup()
     const data = planWorkspaceById('00000000-0000-0000-0000-000000000201')

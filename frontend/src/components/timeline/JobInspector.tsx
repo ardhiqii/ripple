@@ -42,7 +42,7 @@ export function JobInspector({ job, resource, range, scheduleVersion, decisionId
     resourceId: resource.id,
     resourceName: resource.name,
     startDay: job.start,
-    endDay: job.start + job.span,
+    endDay: job.start + job.span - 1,
     dateRange: range,
     scheduleVersion,
     decisionId,
@@ -62,7 +62,7 @@ export function JobInspector({ job, resource, range, scheduleVersion, decisionId
       jobIds: [job.id],
       resourceIds: [resource.id],
       scheduleVersion,
-      dates: { startDay: job.start, endDay: job.start + job.span },
+      dates: { startDay: job.start, endDay: job.start + job.span - 1 },
     }
     window.dispatchEvent(new CustomEvent('ripple:open', { detail: { mode, context: rippleContext } }))
   }
@@ -87,7 +87,7 @@ export function JobInspector({ job, resource, range, scheduleVersion, decisionId
             <ContextItem icon={<CalendarBlank aria-hidden="true" />} label="Schedule window" value={`D+${context.startDay} – D+${context.endDay}`} />
             <ContextItem icon={<Wrench aria-hidden="true" />} label="Resource" value={resource.name} />
             <ContextItem icon={<ClipboardText aria-hidden="true" />} label="Schedule version" value={`v${scheduleVersion}`} />
-            <ContextItem icon={<Sparkle aria-hidden="true" />} label="Status" value={job.status ?? 'planned'} />
+            <ContextItem icon={<Sparkle aria-hidden="true" />} label="Status" value={statusLabel(job.status)} />
           </div>
           {job.risk ? <p className="m-0 rounded-sm border border-danger/30 bg-danger-subtle px-3 py-2 text-xs text-ink">Readiness risk is attached to this activity. Open Readiness to review its chain.</p> : null}
         </div>
@@ -111,4 +111,11 @@ export function JobInspector({ job, resource, range, scheduleVersion, decisionId
 
 function ContextItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return <div className="grid gap-1 rounded-sm border border-border bg-surface-subtle p-2"><span className="flex items-center gap-1 text-[10px] font-bold text-muted">{icon}{label}</span><strong className="truncate text-xs text-ink">{value}</strong></div>
+}
+
+function statusLabel(status: TimelineJob['status']): string {
+  if (status === 'progress') return 'In progress'
+  if (status === 'complete') return 'Complete'
+  if (status === 'hold') return 'Weather hold'
+  return 'Planned'
 }

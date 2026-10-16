@@ -32,7 +32,8 @@ def type_from_schema(schema: dict[str, Any]) -> str:
         return f'components["schemas"]["{name}"]'
     if "oneOf" in schema or "anyOf" in schema:
         key = "oneOf" if "oneOf" in schema else "anyOf"
-        return " | ".join(type_from_schema(item) for item in schema[key]) or "unknown"
+        types = [type_from_schema(item) for item in schema[key]]
+        return " | ".join(dict.fromkeys(types)) or "unknown"
     if "allOf" in schema:
         return " & ".join(type_from_schema(item) for item in schema["allOf"]) or "unknown"
     if "enum" in schema:
@@ -50,6 +51,7 @@ def type_from_schema(schema: dict[str, Any]) -> str:
         ]
         return "{ " + " ".join(fields) + " }"
     return {
+        "null": "null",
         "integer": "number",
         "number": "number",
         "boolean": "boolean",

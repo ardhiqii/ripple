@@ -2,7 +2,7 @@
 
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,17 +28,19 @@ function renderHistory(overrides: Partial<DecisionHistoryProps> = {}) {
 }
 
 describe('DecisionHistory', () => {
-  it('renders summary metrics and filters the immutable list through route-ready search callbacks', async () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('renders server-scoped summary metrics and sends route-ready search callbacks', async () => {
     const user = userEvent.setup()
     const onSearchChange = vi.fn()
     const view = renderHistory({ onSearchChange })
 
-    expect(screen.getByText('Decisions')).toBeInTheDocument()
+    expect(screen.getByText('Server decisions')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Action'), 'approve')
     expect(onSearchChange).toHaveBeenCalledWith({ action: 'approve' })
     view.rerender(<DecisionHistory {...view.props} search={{ action: 'approve' }} />)
-    expect(screen.queryByText('D-07 test bay constraint')).not.toBeInTheDocument()
+    expect(screen.getByText('D-07 vendor delay and seal finding')).toBeInTheDocument()
   })
 
   it('has no edit controls and opens an immutable audit detail with the required sequence', async () => {
@@ -67,7 +69,7 @@ describe('DecisionHistory', () => {
     await user.click(screen.getByRole('button', { name: 'Copy stable link' }))
     await user.click(screen.getByRole('button', { name: 'Start similar change' }))
 
-    expect(onOpenTimeline).toHaveBeenCalledWith({ decisionId: historyFixtureIds.approved, from: '2026-09-29', to: '2026-09-29' })
+    expect(onOpenTimeline).toHaveBeenCalledWith({ decisionId: historyFixtureIds.approved, from: '2026-09-29', to: '2026-09-29', jobId: 'A-12' })
     expect(onOpenSourceEvent).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000012')
     expect(onOpenDecisionWorkspace).toHaveBeenCalledWith({ decisionId: historyFixtureIds.approved, planId: '00000000-0000-0000-0000-000000000201', mode: 'audit' })
     expect(onCopyStableLink).toHaveBeenCalledWith({ decisionId: historyFixtureIds.approved, url: `/history?decision=${historyFixtureIds.approved}` })
@@ -85,9 +87,34 @@ describe('DecisionHistory', () => {
     emptyView.unmount()
 
     const view = renderHistory({ onSearchChange, search: { q: 'does-not-exist' } })
-    expect(screen.getByText('No decisions match these filters.')).toBeInTheDocument()
+    const filteredEmptyData = { ...historyFixture, decisions: [], details: {}, summary: { total: 0, approvals: 0, rejections: 0, replies: 0, conditional: 0 } }
+    view.rerender(<DecisionHistory {...view.props} data={filteredEmptyData} />)
+    expect(screen.getByText('No decisions match these server filters.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(onSearchChange).toHaveBeenCalledWith({ from: undefined, to: undefined, action: undefined, nature: undefined, job: undefined, actor: undefined, conditional: undefined, q: undefined })
+    expect(onSearchChange).toHaveBeenCalledWith({ from: undefined, to: undefined, action: undefined, planId: undefined, nature: undefined, job: undefined, actor: undefined, conditional: undefined, q: undefined })
     view.unmount()
+  })
+
+  it('debounces free-text search before notifying the server-backed route', () => {
+    vi.useFakeTimers()
+    const onSearchChange = vi.fn()
+    renderHistory({ onSearchChange })
+
+    fireEvent.change(screen.getByLabelText('Search decisions'), { target: { value: 'vendor' } })
+    expect(onSearchChange).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(219))
+    expect(onSearchChange).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(1))
+    expect(onSearchChange).toHaveBeenCalledWith({ q: 'vendor' })
+  })
+
+  it('keeps Clear filters available while filtered records are still visible', async () => {
+    const user = userEvent.setup()
+    const onSearchChange = vi.fn()
+    renderHistory({ onSearchChange, search: { actor: 'planner.demo' } })
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(onSearchChange).toHaveBeenCalledWith({ from: undefined, to: undefined, action: undefined, planId: undefined, nature: undefined, job: undefined, actor: undefined, conditional: undefined, q: undefined })
   })
 })

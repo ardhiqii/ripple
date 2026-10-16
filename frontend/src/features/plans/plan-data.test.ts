@@ -51,6 +51,12 @@ describe('plan workspace data helpers', () => {
     expect(isOptionSelectable(infeasible!)).toBe(false)
   })
 
+  it('treats the server solver status optimal as a selectable feasible result', () => {
+    const workspace = planWorkspaceById(a12PlanId)
+    const optimal = { ...findOption(workspace, '00000000-0000-0000-0000-000000000211')!, solverStatus: 'optimal' }
+    expect(isOptionSelectable(optimal)).toBe(true)
+  })
+
   it('returns option KPI and review metrics with safe null fallbacks', () => {
     const workspace = planWorkspaceById(a12PlanId)
     const option = workspace.options[0]

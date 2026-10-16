@@ -26,7 +26,7 @@ function PolicyRoute() {
     void navigator.clipboard?.writeText(`${window.location.origin}${url}`).then(() => toast.success('Policy link copied')).catch(() => toast.error('Could not copy policy link'))
   }
 
-  return <PolicyWorkspace data={data} search={search} onSearchChange={(patch) => navigate({ search: (previous) => ({ ...previous, ...patch }) })} onOpenLever={() => undefined} onExplainApprovalOwner={() => undefined} onCopyPolicyLink={copyPolicyLink} onViewAffectedItems={(sourceName) => navigate({ to: '/readiness', search: { q: sourceName } })} onUsedInDecisions={(leverName) => navigate({ to: '/history', search: { q: leverName } })} />
+  return <PolicyWorkspace data={data} search={search} onSearchChange={(patch) => navigate({ search: (previous) => ({ ...previous, ...patch }) })} onCopyPolicyLink={copyPolicyLink} onViewAffectedItems={(sourceName) => navigate({ to: '/readiness', search: { q: sourceName } })} />
 }
 
 function PolicyState({ title, message, onRetry }: { title: string; message: string; onRetry?: () => void }) {

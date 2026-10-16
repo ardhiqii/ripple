@@ -649,8 +649,10 @@ Error shape:
 | GET | `/api/v1/events` | Filtered inbox with cursor pagination |
 | GET | `/api/v1/events/{event_id}` | Source, extraction, state, linked runs and plans |
 | PATCH | `/api/v1/events/{event_id}/extraction` | Save planner correction using expected extraction version |
-| POST | `/api/v1/events/{event_id}/extract` | Start or retry extraction only |
+| POST | `/api/v1/events/{event_id}/extract` | Start/retry extraction; in synthetic local/preview, complete a bounded validated server-side attempt per the amendment below. Never start an agent run or mutate the schedule here. |
 | DELETE | `/api/v1/events/{event_id}` | Draft-only deletion in prototype; otherwise archive |
+
+**Synthetic-preview recovery amendment (2026-10-16):** The `POST .../extract` contract above describes initiation, but the current API has no consumer for its queued `planning` state. For `local`/`preview`, BE-25 must complete a bounded server-side extraction attempt and persist the validated extraction/version before reporting a terminal result, using configured Gemini when available or an explicitly labelled deterministic synthetic extractor. Ambiguous input becomes `clarification_needed`; failure stays retryable and truthful, never an indefinitely queued success. No frontend-generated extraction. In staging/production, missing provider returns an error rather than synthetic output. This does not change the run/approval boundary or add a new database event state. See [preview recovery §4.3](../implementation/preview-ux-recovery.md#43-changes-and-event-detail).
 
 ### 9.6 Agent runs and streaming
 
@@ -1380,7 +1382,7 @@ For hackathon, implement simple failure counters around Vertex AI only if time a
 
 ### 23.4 Graceful degradation
 
-- Model unavailable before extraction: allow structured manual extraction form or recorded scenario.
+- Model unavailable before extraction: allow structured manual extraction form or recorded scenario; in guarded synthetic local/preview, the explicitly labelled deterministic extraction path in BE-25 may persist a validated result. Never use that synthetic fallback for real staging/production data.
 - Model unavailable after tools ran: persist tool results and generate deterministic explanation template.
 - Solver unavailable or invalid model: do not recommend a plan.
 - Database unavailable: health readiness fails; no writes accepted.

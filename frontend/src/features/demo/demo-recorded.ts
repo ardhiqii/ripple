@@ -148,7 +148,7 @@ export function mapRecordedSseFrameToEvent(frame: string, fallbackRunId: string)
       type,
       timestamp: stringValue(candidate.timestamp) ?? '',
       phase: stringValue(candidate.phase) ?? null,
-      public: publicPayload,
+      public: recordValue(publicPayload),
     }
   } catch {
     return null

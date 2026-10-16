@@ -47,7 +47,7 @@ export type DataSourceHealthView = {
   name: string
   lastSuccessfulUpdate: string | null
   freshnessState: FreshnessState
-  affectedCount: number
+  affectedCount: number | null
   latestError: string | null
   staleCount: number
 }
@@ -97,21 +97,21 @@ export function toPolicyWorkspaceData(data: PolicyApiData): PolicyWorkspaceData 
     levers: asArray(levers.levers).map((rawLever) => {
       const lever = asRecord(rawLever)
       return {
-        name: asString(lever.name) ?? 'Unnamed action',
+        name: asString(lever.name) ?? 'Not supplied',
         allowed: asBoolean(lever.allowed),
         approvalOwner: asString(lever.approval),
-        costWeight: asString(lever.cost_weight ?? lever.costWeight) ?? '—',
+        costWeight: asString(lever.cost_weight ?? lever.costWeight) ?? 'Not supplied',
       }
     }),
     profiles: asArray(profiles.profiles).map((rawProfile) => {
       const profile = asRecord(rawProfile)
-      const name = asString(profile.name) ?? 'Unnamed profile'
+      const name = asString(profile.name) ?? 'Not supplied'
       return {
         name,
-        delayWeight: asString(profile.delay_weight ?? profile.delayWeight) ?? '—',
-        leverCostWeight: asString(profile.lever_cost_weight ?? profile.leverCostWeight) ?? '—',
-        movementWeight: asString(profile.movement_weight ?? profile.movementWeight) ?? '—',
-        riskWeight: asString(profile.risk_weight ?? profile.riskWeight) ?? '—',
+        delayWeight: asString(profile.delay_weight ?? profile.delayWeight) ?? 'Not supplied',
+        leverCostWeight: asString(profile.lever_cost_weight ?? profile.leverCostWeight) ?? 'Not supplied',
+        movementWeight: asString(profile.movement_weight ?? profile.movementWeight) ?? 'Not supplied',
+        riskWeight: asString(profile.risk_weight ?? profile.riskWeight) ?? 'Not supplied',
         isDefault: name === (asString(profiles.default_profile) ?? ''),
       }
     }),
@@ -122,10 +122,10 @@ export function toPolicyWorkspaceData(data: PolicyApiData): PolicyWorkspaceData 
     sources: asArray(dataHealth.sources).map((rawSource) => {
       const source = asRecord(rawSource)
       return {
-        name: asString(source.source_type ?? source.source_name ?? source.sourceName) ?? 'Unknown source',
+        name: asString(source.source_type ?? source.source_name ?? source.sourceName) ?? 'Not supplied',
         lastSuccessfulUpdate: asString(source.latest_updated_at ?? source.latestSuccessfulUpdate ?? source.latest_successful_update),
         freshnessState: freshnessState(source.status ?? source.freshness_state ?? source.freshnessState),
-        affectedCount: asNumber(source.item_count ?? source.affected_count ?? source.affectedCount) ?? 0,
+        affectedCount: asNumber(source.item_count ?? source.affected_count ?? source.affectedCount),
         latestError: suppliedError(source),
         staleCount: asNumber(source.stale_count ?? source.staleCount) ?? 0,
       }

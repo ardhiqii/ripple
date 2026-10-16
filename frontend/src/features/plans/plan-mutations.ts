@@ -7,8 +7,8 @@ import {
 } from '@tanstack/react-query'
 
 import { queryClient as applicationQueryClient } from '@/app/query-client'
+import { ApiError, apiTransport, createApiTransport, scenarioQueryKey } from '@/api/transport'
 import type { components } from '@/api/generated/openapi'
-import { apiUrl } from '@/api/url'
 
 type Schemas = components['schemas']
 
@@ -21,6 +21,7 @@ export type ReplyPlanRequest = Schemas['ReplyPlanRequest']
 export type PlanMutationAction = 'approve' | 'reject' | 'reply'
 
 type MutationContext = {
+  scenarioId?: string
   planId: string
   idempotencyKey?: string
   eventId?: string
@@ -107,6 +108,7 @@ export const planMutationQueryDomains = [
 ] as const
 
 export interface PlanMutationInvalidationContext {
+  scenarioId?: string
   planId: string
   eventId?: string
   jobIds?: readonly string[]
@@ -114,9 +116,10 @@ export interface PlanMutationInvalidationContext {
 }
 
 export function planMutationQueryKeys(context: PlanMutationInvalidationContext): PlanMutationQueryKey[] {
+  const scenarioId = context.scenarioId ?? apiTransport.scenarioId
   return [
-    ...planMutationQueryDomains.map((domain) => [domain] as PlanMutationQueryKey),
-    ['plans', context.planId],
+    ...planMutationQueryDomains.map((domain) => scenarioQueryKey(scenarioId, domain)),
+    scenarioQueryKey(scenarioId, 'plans', context.planId),
   ]
 }
 
@@ -135,6 +138,7 @@ export interface PlanMutationClientOptions {
   fetcher?: Fetcher
   queryClient?: QueryClient
   createIdempotencyKey?: () => string
+  scenarioId?: string
 }
 
 export interface PlanMutationClient {
@@ -147,12 +151,12 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 type PlanMutationInput = MutationContext
 
 const defaultCreateIdempotencyKey = () => {
-  const randomUUID = globalThis.crypto?.randomUUID
-  return randomUUID ? randomUUID() : `ripple-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return globalThis.crypto?.randomUUID?.() ?? `ripple-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 export function createPlanMutationClient(options: PlanMutationClientOptions = {}): PlanMutationClient {
-  const fetcher: Fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis)
+  const fetcher: Fetcher = options.fetcher ?? ((input, init) => globalThis.fetch(input, init))
+  const transport = createApiTransport({ fetcher, scenarioId: options.scenarioId })
   const createIdempotencyKey = options.createIdempotencyKey ?? defaultCreateIdempotencyKey
   const inFlight = new Map<string, Promise<ApprovalResponse | DecisionMutationResponse>>()
   const generatedKeys = new Map<string, string>()
@@ -171,24 +175,27 @@ export function createPlanMutationClient(options: PlanMutationClientOptions = {}
     if (!input.idempotencyKey) generatedKeys.set(fingerprint, idempotencyKey)
 
     const promise = (async () => {
-      const response = await fetcher(
-        apiUrl(`/api/v1/plans/${encodeURIComponent(input.planId)}/${action}`),
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'Idempotency-Key': idempotencyKey,
+      let value: unknown
+      try {
+        value = await transport.post<unknown>(
+          `/api/v1/plans/${encodeURIComponent(input.planId)}/${action}`,
+          payload,
+          {
+            headers: {
+              Accept: 'application/json',
+              'Idempotency-Key': idempotencyKey,
+            },
           },
-          body: JSON.stringify(payload),
-        },
-      )
-      const value = await readJson(response)
-      if (!response.ok) throw parsePlanMutationError(response.status, value, action)
+        )
+      } catch (error) {
+        if (error instanceof ApiError) throw parsePlanMutationError(error.status, apiErrorPayload(error), action)
+        throw error
+      }
 
       const result = parse(value, action)
       if (options.queryClient) {
         await invalidatePlanMutationQueries(options.queryClient, {
+          scenarioId: input.scenarioId,
           planId: input.planId,
           eventId: input.eventId,
           jobIds: input.jobIds,
@@ -295,8 +302,9 @@ export function usePlanMutations(options: UsePlanMutationsOptions = {}): UsePlan
       fetcher: options.fetcher,
       queryClient: options.queryClient ?? providerQueryClient,
       createIdempotencyKey: options.createIdempotencyKey,
+      scenarioId: options.scenarioId ?? apiTransport.scenarioId,
     }),
-    [options.client, options.createIdempotencyKey, options.fetcher, options.queryClient, providerQueryClient],
+    [options.client, options.createIdempotencyKey, options.fetcher, options.queryClient, options.scenarioId, providerQueryClient],
   )
 
   const approve = useMutation<ApprovalResponse, PlanMutationError, ApprovePlanInput>({
@@ -377,11 +385,15 @@ function invalidSuccessResponse(action: PlanMutationAction): PlanMutationError {
   })
 }
 
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json()
-  } catch {
-    return undefined
+function apiErrorPayload(error: ApiError): Record<string, unknown> {
+  return {
+    error: {
+      code: error.code,
+      message: error.message,
+      request_id: error.requestId,
+      retryable: error.retryable,
+      details: error.details,
+    },
   }
 }
 

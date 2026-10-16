@@ -1,7 +1,9 @@
 import asyncio
+import base64
 import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -20,7 +22,8 @@ from app.persistence.models import (
     PlanOption,
 )
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def test_openapi_exposes_plan_and_decision_read_contract() -> None:
@@ -35,6 +38,26 @@ def test_openapi_exposes_plan_and_decision_read_contract() -> None:
         "/api/v1/decisions",
         "/api/v1/decisions/{decision_id}",
     } <= paths
+
+
+def test_decision_cursor_rejects_timezone_naive_timestamp() -> None:
+    cursor = base64.urlsafe_b64encode(
+        b"2026-10-13T00:00:00|11111111-1111-1111-1111-111111111111"
+    ).decode("ascii").rstrip("=")
+
+    async def exercise() -> None:
+        with pytest.raises(ApplicationError) as caught:
+            await PlanService(cast(AsyncSession, None)).list_decisions(
+                "A-12-base",
+                action=None,
+                plan_id=None,
+                limit=10,
+                after=cursor,
+            )
+        assert caught.value.status_code == 422
+        assert caught.value.code == "validation_error"
+
+    asyncio.run(exercise())
 
 
 def test_plan_and_decision_database_routes_return_typed_unavailable_error() -> None:
@@ -79,6 +102,112 @@ def _settings() -> Settings:
     if not database_url:
         pytest.skip("set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures")
     return Settings(environment="test", database_url=database_url)
+
+
+@pytest.mark.skipif(
+    not os.getenv("RIPPLE_DATABASE_URL"),
+    reason="set RIPPLE_DATABASE_URL for PostgreSQL API integration fixtures",
+)
+def test_decision_history_filters_and_paginates_over_one_hundred_rows() -> None:
+    database_url = os.environ["RIPPLE_DATABASE_URL"]
+    actor = "be20-pagination"
+    decision_ids: list[UUID] = []
+
+    async def seed_decisions() -> None:
+        engine = create_async_engine(database_url)
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            async with session.begin():
+                plan = await session.scalar(
+                    select(Plan)
+                    .join(Event, Event.id == Plan.event_id)
+                    .where(Event.scenario_id == "fleet-scale")
+                    .order_by(Plan.created_at)
+                    .limit(1)
+                )
+                assert plan is not None
+                option = await session.scalar(
+                    select(PlanOption.id).where(PlanOption.plan_id == plan.id).limit(1)
+                )
+                for index in range(105):
+                    decision_id = uuid4()
+                    decision_ids.append(decision_id)
+                    session.add(
+                        Decision(
+                            id=decision_id,
+                            plan_id=plan.id,
+                            selected_option_id=option,
+                            action="approve",
+                            actor=actor,
+                            reason=f"BE20 pagination {index:03d}",
+                            category="history-test",
+                            acknowledged_condition_ids=[],
+                            schedule_version_before=1,
+                            schedule_version_after=1,
+                            created_at=datetime(2026, 10, 13, tzinfo=UTC)
+                            + timedelta(seconds=index),
+                        )
+                    )
+        await engine.dispose()
+
+    async def cleanup() -> None:
+        engine = create_async_engine(database_url)
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            async with session.begin():
+                await session.execute(delete(Decision).where(Decision.id.in_(decision_ids)))
+        await engine.dispose()
+
+    asyncio.run(seed_decisions())
+    try:
+        settings = Settings(environment="local", database_url=database_url)
+        headers = {"X-Scenario-ID": "fleet-scale"}
+        pages: list[dict[str, Any]] = []
+        with TestClient(create_app(settings)) as client:
+            params: dict[str, object] = {"actor": actor, "limit": 50}
+            for _ in range(3):
+                response = client.get("/api/v1/decisions", headers=headers, params=params)
+                assert response.status_code == 200
+                body = response.json()
+                pages.append(body)
+                if body["next_cursor"] is None:
+                    break
+                params = {"actor": actor, "limit": 50, "after": body["next_cursor"]}
+
+            filtered = client.get(
+                "/api/v1/decisions",
+                headers=headers,
+                params={
+                    "actor": actor,
+                    "job_id": "FS-JOB-017",
+                    "nature": "request",
+                    "from": "2026-10-13",
+                    "to": "2026-10-13",
+                    "q": "BE20 pagination 010",
+                    "limit": 10,
+                },
+            )
+
+        listed_ids = [
+            decision["id"]
+            for page in pages
+            for decision in page["decisions"]
+        ]
+        assert [page["total_count"] for page in pages] == [105, 105, 105]
+        assert len(listed_ids) == 105
+        assert len(set(listed_ids)) == 105
+        assert listed_ids == [str(decision_id) for decision_id in reversed(decision_ids)]
+        assert all(
+            {"event_id", "job_ids", "plan_version", "event_nature"} <= set(decision)
+            for page in pages
+            for decision in page["decisions"]
+        )
+        assert filtered.status_code == 200
+        assert filtered.json()["total_count"] == 1
+        assert filtered.json()["decisions"][0]["actor"] == actor
+        assert filtered.json()["decisions"][0]["job_ids"]
+    finally:
+        asyncio.run(cleanup())
 
 
 def _run_plan_acceptance() -> None:

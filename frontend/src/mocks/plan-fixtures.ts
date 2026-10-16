@@ -32,7 +32,7 @@ export const a12PlanFixture = {
       label: 'Move A-12 to D+5 with cargo coordination',
       weight_profile: { name: 'balanced' },
       solver_status: 'feasible',
-      objective_value: 12.5,
+      objective_value: '12.5',
       solve_milliseconds: 118,
       changes: [
         { kind: 'move_job', target: 'A-12', value: 5 },
@@ -58,7 +58,7 @@ export const a12PlanFixture = {
       label: 'Hold A-12 until D+7',
       weight_profile: { name: 'balanced' },
       solver_status: 'feasible',
-      objective_value: 18,
+      objective_value: '18',
       solve_milliseconds: 104,
       changes: [{ kind: 'move_job', target: 'A-12', value: 7 }],
       conditions: [],

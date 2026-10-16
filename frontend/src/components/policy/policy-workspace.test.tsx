@@ -79,6 +79,7 @@ describe('PolicyWorkspace', () => {
     try {
       renderWorkspace({ section: 'data-sources' })
       expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' })
+      expect(document.getElementById('policy-section-data-sources')).toHaveFocus()
     } finally {
       window.matchMedia = originalMatchMedia
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView

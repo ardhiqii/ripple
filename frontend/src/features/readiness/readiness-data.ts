@@ -1,7 +1,9 @@
-import { readinessFixture } from '@/mocks/fixtures'
-
 export type ReadinessStatus = 'pending' | 'ready' | 'blocked' | 'waived'
 export type ReadinessConfidence = 'low' | 'medium' | 'high'
+
+// Kept only for the existing integration fixture test; production routes use
+// the API adapter and never initialize this compatibility export.
+export { readinessTestRows as initialReadinessRows } from './readiness-test-fixtures'
 
 export interface ReadinessRow {
   id: string
@@ -24,36 +26,12 @@ export interface ReadinessRow {
   stale: boolean
   freshness_hours: number | null
   feasible_for_target: boolean
+  vendor_expedite_required: boolean
   notes: string[]
+  row_version: number
 }
 
-export const initialReadinessRows: ReadinessRow[] = readinessFixture.items.map((item) => ({
-  id: item.id,
-  job_id: item.job_id,
-  stage: item.stage,
-  step_order: item.step_order,
-  lead_time_days: item.lead_time_days,
-  planned_day: item.planned_day,
-  eta_earliest: item.eta_earliest,
-  eta_latest: item.eta_latest,
-  confidence: item.confidence as ReadinessConfidence,
-  status: item.status as ReadinessStatus,
-  source_type: item.source_type,
-  source_reference: item.source_reference,
-  last_updated: item.last_updated,
-  required_by: item.required_by,
-  effective_eta: item.effective_eta,
-  slack: item.slack,
-  effective_slack: item.effective_slack,
-  stale: item.stale,
-  freshness_hours: item.freshness_hours,
-  feasible_for_target: item.feasible_for_target,
-  notes: [...item.notes],
-}))
-
-export type ReadinessUpdate = (itemId: string, status: ReadinessStatus) => Promise<void>
-
-export const mockUpdateReadinessStatus: ReadinessUpdate = async () => undefined
+export type ReadinessUpdate = (itemId: string, status: ReadinessStatus, expectedRowVersion?: number) => Promise<ReadinessRow | void>
 
 export function riskForRow(row: ReadinessRow): 'critical' | 'due' | 'on_track' {
   if (row.status === 'blocked' || (row.effective_slack ?? row.slack ?? 99) <= 0) return 'critical'
@@ -81,7 +59,7 @@ export function filterReadinessRows(
     const matchesFreshness = !filters.freshness
       || (filters.freshness === 'stale' && row.stale)
       || (filters.freshness === 'fresh' && !row.stale)
-    const haystack = `${row.id} ${row.job_id} ${row.stage} ${row.source_reference ?? ''}`.toLowerCase()
+    const haystack = `${row.id} ${row.job_id} ${row.stage} ${row.source_type} ${row.source_reference ?? ''}`.toLowerCase()
     return matchesRisk && matchesJob && matchesStage && matchesConfidence && matchesFreshness && (!query || haystack.includes(query))
   })
 }
