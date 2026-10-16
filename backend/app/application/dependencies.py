@@ -6,9 +6,7 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """Yield the app-owned session; do not create a database connection per query."""
-
+def get_session_factory(request: Request) -> Callable[[], AsyncSession]:
     factory = getattr(request.app.state, "session_factory", None)
     if factory is None or not callable(factory):
         raise ApplicationError(
@@ -17,8 +15,13 @@ async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
             "Database access is not configured for this API process.",
             retryable=True,
         )
-    session_factory = cast(Callable[[], AsyncSession], factory)
-    async with session_factory() as session:
+    return cast(Callable[[], AsyncSession], factory)
+
+
+async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """Yield the app-owned session; do not create a database connection per query."""
+
+    async with get_session_factory(request)() as session:
         yield session
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -19,6 +19,7 @@ from app.agent.tools import (
     SolveToolResult,
     ToolBudgetExceeded,
     WorkflowToolbox,
+    solved_start,
 )
 from app.application.schemas import ChangeEventExtraction
 from app.domain.policy import DomainPack
@@ -52,10 +53,12 @@ class WorkflowStatus(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class WorkflowLimits:
-    max_tool_calls: int = 15
+    # The counterfactual tries every subset of the registry levers (2^3 for the
+    # offshore pack), so its budget and the overall tool budget must cover that.
+    max_tool_calls: int = 20
     max_lever_solver_calls: int = 5
     max_profile_solves: int = 3
-    max_counterfactual_solves: int = 6
+    max_counterfactual_solves: int = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +69,7 @@ class WorkflowInput:
     cargo_items: tuple[CargoRequirement, ...] = ()
     as_of: datetime | None = None
     limits: WorkflowLimits = WorkflowLimits()
+    on_tool_record: Callable[[ToolCallRecord], None] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +215,7 @@ class ControlledAgentWorkflow:
             max_lever_solver_calls=workflow_input.limits.max_lever_solver_calls,
             max_profile_solves=workflow_input.limits.max_profile_solves,
             max_counterfactual_solves=workflow_input.limits.max_counterfactual_solves,
+            on_record=workflow_input.on_tool_record,
         )
         try:
             toolbox.get_schedule()
@@ -366,9 +371,7 @@ class ControlledAgentWorkflow:
 
 
 def _actual_start(result: SolveToolResult, job_id: str) -> int | None:
-    if result.solve.snapshot is None:
-        return None
-    return next((job.start_day for job in result.solve.snapshot.jobs if job.id == job_id), None)
+    return solved_start(result.solve, job_id)
 
 
 def _select_recommended(
@@ -377,12 +380,29 @@ def _select_recommended(
     feasible = [option for option in options if option.solve.solve.feasible]
     if not feasible:
         return None
+    baseline_start = next(
+        (_actual_start(option.solve, job_id) for option in feasible if not option.levers), None
+    )
 
     def option_key(option: VerifiedOption) -> tuple[object, ...]:
         actual_start = _actual_start(option.solve, job_id)
         simulation = option.solve.simulation
         kpi = simulation.kpi_delta if simulation is not None else None
+        improves = (
+            actual_start is not None
+            and baseline_start is not None
+            and actual_start < baseline_start
+        )
+        # A planner asking about one job wants the least reshuffling of everyone
+        # else; a faster option that moves other jobs stays visible as an alternative.
+        others_moved = sum(
+            1
+            for change in option.solve.solve.changes
+            if change["kind"] == "move_job" and change["target"] != job_id
+        )
         return (
+            not improves,
+            others_moved,
             actual_start if actual_start is not None else 2**31,
             kpi.shortfall_bopd_days if kpi is not None else Decimal("Infinity"),
             kpi.max_capacity_overflow if kpi is not None else Decimal("Infinity"),

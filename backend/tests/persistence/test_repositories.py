@@ -23,7 +23,7 @@ from app.persistence.repositories import (
 from app.security.input_boundary import decode_cursor, encode_cursor
 
 SEED_PATH = Path(__file__).parents[2] / "seed" / "offshore_a12.sql"
-EXPECTED_SEED_SHA256 = "ad6cfef833c4291eea135ad92786c34b6e6ca1d5bfefda45150506f04b58687b"
+EXPECTED_SEED_SHA256 = "e9dcabdd8ea5c78ed932fd83d994c406486de23793c9dd0a6f9819558048274b"
 
 
 def test_offshore_seed_checksum_is_stable() -> None:

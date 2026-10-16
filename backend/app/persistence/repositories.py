@@ -5,6 +5,8 @@ contain scheduling, readiness, or approval business rules; those remain in the
 domain and engine layers.
 """
 
+import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -41,6 +43,7 @@ from app.persistence.models import (
     AgentRun,
     AgentRunEvent,
     Alert,
+    CargoItem,
     Decision,
     DecisionChange,
     Event,
@@ -52,6 +55,7 @@ from app.persistence.models import (
     PlanOption,
     ReadinessSuggestion,
     ScheduleState,
+    ToolCall,
     WeatherForecast,
 )
 from app.persistence.models import (
@@ -69,6 +73,7 @@ from app.persistence.models import (
 from app.persistence.models import (
     ResourceUnavailability as ResourceUnavailabilityRow,
 )
+from app.solver.types import CargoRequirement
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -293,6 +298,26 @@ class ScheduleRepository:
                 )
                 for row in unavailability_result.scalars().all()
             ),
+        )
+
+    async def list_cargo_requirements(self, scenario_id: str) -> tuple[CargoRequirement, ...]:
+        """Cargo the solver may (re)assign; unbooked items carry no sailing day."""
+
+        result = await self._session.execute(
+            select(CargoItem, BookingRow)
+            .outerjoin(BookingRow, BookingRow.id == CargoItem.sailing_booking_id)
+            .where(CargoItem.scenario_id == scenario_id)
+            .order_by(CargoItem.id)
+        )
+        return tuple(
+            CargoRequirement(
+                id=cargo.id,
+                deck_units=cargo.deck_units,
+                needed_by_day=cargo.needed_by_day,
+                sailing_day=booking.start_day if booking is not None else None,
+                resource_id=booking.resource_id if booking is not None else None,
+            )
+            for cargo, booking in result.tuples().all()
         )
 
     async def list_unavailability(
@@ -994,6 +1019,32 @@ class RunRepository:
             event_type=event_type,
             public_payload=payload,
             internal_payload=dict(internal_payload) if internal_payload is not None else None,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return row
+
+    async def record_tool_call(
+        self,
+        *,
+        tool_call_id: UUID,
+        run_id: UUID,
+        tool_name: str,
+        ordinal: int,
+        sanitized_input: dict[str, object],
+        sanitized_result: dict[str, object],
+    ) -> ToolCall:
+        canonical_input = json.dumps(sanitized_input, sort_keys=True, separators=(",", ":"))
+        row = ToolCall(
+            id=tool_call_id,
+            run_id=run_id,
+            tool_name=tool_name,
+            ordinal=ordinal,
+            sanitized_input=sanitized_input,
+            sanitized_result=sanitized_result,
+            completed_at=datetime.now(UTC),
+            status="completed",
+            input_hash=hashlib.sha256(canonical_input.encode()).hexdigest(),
         )
         self._session.add(row)
         await self._session.flush()

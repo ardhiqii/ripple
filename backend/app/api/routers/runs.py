@@ -1,24 +1,25 @@
-from collections.abc import Callable
-from typing import cast
 from uuid import UUID
 
+from app.application.agent_run_executor import AgentRunExecutor
 from app.application.dependencies import (
     get_db_session,
+    get_session_factory,
     require_capability,
     scenario_id_from_request,
 )
-from app.application.errors import ApplicationError
 from app.application.run_service import (
     RunCreateResponse,
     RunDetailResponse,
     RunService,
     resolve_stream_sequence,
 )
+from app.domain.policy import OFFSHORE_PACK
 from app.observability.metrics import MetricsRegistry, default_metrics, instrument_stream
 from app.streaming.run_stream import stream_run as stream_run_content
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
 
 router = APIRouter(tags=["runs"])
 
@@ -35,15 +36,21 @@ async def create_run(
     session: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> JSONResponse:
     require_capability(request, "planner.write")
+    scenario_id = scenario_id_from_request(request)
     outcome = await RunService(session).create(
-        scenario_id_from_request(request),
+        scenario_id,
         event_id,
         actor=request.state.context.actor_id,
         idempotency_key=idempotency_key,
     )
+    background = None
+    if not outcome.replayed:
+        executor = AgentRunExecutor(get_session_factory(request), OFFSHORE_PACK)
+        background = BackgroundTask(executor.execute, scenario_id, outcome.response.run_id)
     return JSONResponse(
         status_code=200 if outcome.replayed else 201,
         content=outcome.response.model_dump(mode="json"),
+        background=background,
     )
 
 
@@ -67,15 +74,7 @@ async def stream_run(
     scenario_id = scenario_id_from_request(request)
     sequence = resolve_stream_sequence(last_event_id, after)
     await RunService(session).ensure_stream(scenario_id, run_id, sequence)
-    session_factory = getattr(request.app.state, "session_factory", None)
-    if session_factory is None or not callable(session_factory):
-        raise ApplicationError(
-            503,
-            "database_unavailable",
-            "Database access is not configured for this API process.",
-            retryable=True,
-        )
-    factory = cast(Callable[[], AsyncSession], session_factory)
+    factory = get_session_factory(request)
     metrics = getattr(request.app.state, "metrics", default_metrics())
     if not isinstance(metrics, MetricsRegistry):
         metrics = default_metrics()

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.agent.workflow import WorkflowLimits
 from app.application.errors import ApplicationError
 from app.application.schemas import ApiModel
 from app.persistence.models import AgentRun, AgentRunEvent
@@ -164,7 +165,7 @@ class RunService:
                     "workflow": "single-agent",
                     "trace": "public-sanitized",
                 },
-                tool_call_budget=15,
+                tool_call_budget=WorkflowLimits().max_tool_calls,
                 timeout_at=timeout_at,
                 idempotency_key=key,
                 now=now,
