@@ -44,6 +44,10 @@ def _scaled(value: Decimal | int | float) -> int:
     return int(Decimal(str(value)) * _OBJECTIVE_SCALE)
 
 
+def _unscaled(value: float) -> Decimal:
+    return Decimal(int(round(value))) / _OBJECTIVE_SCALE
+
+
 def _fingerprint(request: SolveRequest) -> str:
     snapshot = request.snapshot
     payload: dict[str, Any] = {
@@ -618,8 +622,8 @@ def solve(request: SolveRequest) -> SolveResult:
     objective = None
     best_bound = None
     if status in (SolverRunStatus.OPTIMAL, SolverRunStatus.FEASIBLE):
-        objective = int(round(solver.ObjectiveValue()))
-        best_bound = int(round(solver.BestObjectiveBound()))
+        objective = _unscaled(solver.ObjectiveValue())
+        best_bound = _unscaled(solver.BestObjectiveBound())
     diagnostics = SolverDiagnostics(
         status=status,
         wall_time_ms=elapsed_ms,

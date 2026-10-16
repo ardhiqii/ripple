@@ -26,6 +26,20 @@ from app.security.input_boundary import InputBoundaryError, decode_cursor, encod
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+def json_value(value: object) -> object:
+    """Convert solver/engine values (Decimal, UUID, tuples) to JSON-storable ones."""
+
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Mapping):
+        return {str(key): json_value(nested) for key, nested in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_value(nested) for nested in value]
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class PlanOptionDraft:
     label: str
@@ -196,10 +210,10 @@ class PlanService:
                     "solver_status": option.solver_status,
                     "objective_value": option.objective_value,
                     "solve_milliseconds": option.solve_milliseconds,
-                    "changes": self._json_value(option.changes),
-                    "conditions": self._json_value(option.conditions),
-                    "kpi": self._json_value(option.kpi),
-                    "violations": self._json_value(option.violations),
+                    "changes": json_value(option.changes),
+                    "conditions": json_value(option.conditions),
+                    "kpi": json_value(option.kpi),
+                    "violations": json_value(option.violations),
                     "rank": option.rank,
                     "is_recommended": option.option_id == recommended_option_id,
                 }
@@ -223,9 +237,9 @@ class PlanService:
                     "verdict": verdict.value,
                     "recommended_option_id": recommended_option_id,
                     "base_schedule_version": draft.base_schedule_version,
-                    "explanation": self._json_value(draft.explanation),
+                    "explanation": json_value(draft.explanation),
                     "counterfactual": (
-                        self._json_value(draft.counterfactual)
+                        json_value(draft.counterfactual)
                         if draft.counterfactual is not None
                         else None
                     ),
@@ -237,8 +251,8 @@ class PlanService:
             )
             if draft.supersedes_plan_id is not None and superseded is not None:
                 await repository.mark_superseded(draft.supersedes_plan_id, scenario_id)
-
-        return await self.detail(scenario_id, plan_id)
+            # Read back inside the transaction so callers get a clean session.
+            return await self.detail(scenario_id, plan_id)
 
     async def detail(self, scenario_id: str, plan_id: UUID) -> PlanDetailResponse:
         bundle = await PlanRepository(self._session).get_full(plan_id, scenario_id)
@@ -454,19 +468,8 @@ class PlanService:
     def _weight_profile(value: Mapping[str, object] | str) -> dict[str, object]:
         if isinstance(value, str):
             return {"name": value}
-        return PlanService._mapping(PlanService._json_value(value))
+        return PlanService._mapping(json_value(value))
 
-    @staticmethod
-    def _json_value(value: object) -> object:
-        if isinstance(value, Decimal):
-            return float(value)
-        if isinstance(value, UUID):
-            return str(value)
-        if isinstance(value, Mapping):
-            return {str(key): PlanService._json_value(nested) for key, nested in value.items()}
-        if isinstance(value, (list, tuple)):
-            return [PlanService._json_value(nested) for nested in value]
-        return value
 
     @staticmethod
     def _plan_response(bundle: PlanReadBundle) -> PlanDetailResponse:
@@ -622,4 +625,5 @@ __all__ = [
     "PlanOptionDraft",
     "PlanOptionResponse",
     "PlanService",
+    "json_value",
 ]

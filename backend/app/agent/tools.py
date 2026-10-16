@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
@@ -28,6 +28,7 @@ from app.solver.types import (
     CounterfactualStatus,
     SolveRequest,
     SolveResult,
+    scenario_as_of,
 )
 
 
@@ -61,10 +62,14 @@ class WorkflowToolbox:
         max_profile_solves: int = 3,
         max_counterfactual_solves: int = 6,
         worker: BoundedSolverWorker | None = None,
+        on_record: Callable[[ToolCallRecord], None] | None = None,
     ) -> None:
         self.snapshot = snapshot
+        self._on_record = on_record
         self.extraction = extraction
-        self.source_as_of = as_of
+        # One clock for readiness checks and solves; the readiness engine would
+        # otherwise fall back to the wall clock while the solver uses scenario time.
+        self.source_as_of = as_of or scenario_as_of(snapshot)
         self.cargo_items = cargo_items
         self.max_tool_calls = max_tool_calls
         self.max_lever_solver_calls = max_lever_solver_calls
@@ -258,6 +263,8 @@ class WorkflowToolbox:
                 "feasible": result.feasible,
                 "change_count": len(result.changes),
                 "objective_value": result.diagnostics.objective_value,
+                "focus_job_id": request.focus_job_id,
+                "focus_start": solved_start(result, request.focus_job_id),
             },
         )
         return SolveToolResult(result, simulation_result)
@@ -345,14 +352,23 @@ class WorkflowToolbox:
     def _record(
         self, name: str, input_value: Mapping[str, object], output: Mapping[str, object]
     ) -> None:
-        self._records.append(
-            ToolCallRecord(
-                call_id=call_id(),
-                name=name,
-                input=dict(input_value),
-                public_result=dict(output),
-            )
+        record = ToolCallRecord(
+            call_id=call_id(),
+            name=name,
+            input=dict(input_value),
+            public_result=dict(output),
         )
+        self._records.append(record)
+        if self._on_record is not None:
+            self._on_record(record)
+
+
+def solved_start(result: SolveResult, job_id: str | None) -> int | None:
+    """Start day the solver assigned to a job, or None without a solution."""
+
+    if result.snapshot is None:
+        return None
+    return next((job.start_day for job in result.snapshot.jobs if job.id == job_id), None)
 
 
 def _change_value(value: object) -> int | str:

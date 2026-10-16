@@ -23,6 +23,17 @@ class CounterfactualStatus(StrEnum):
     IMPOSSIBLE = "impossible"
 
 
+def scenario_as_of(snapshot: ScheduleSnapshot) -> datetime:
+    """Scenario days are relative to a synthetic "today"; the newest source update
+    stands in for it so seeded data does not age with the wall clock."""
+
+    known = [item.last_updated for item in snapshot.readiness_items if item.last_updated]
+    if not known:
+        return datetime(1970, 1, 1, tzinfo=UTC)
+    latest = max(known)
+    return latest if latest.tzinfo is not None else latest.replace(tzinfo=UTC)
+
+
 @dataclass(frozen=True, slots=True)
 class CargoRequirement:
     """Cargo input required by the solver but not present in the engine snapshot."""
@@ -39,8 +50,8 @@ class CargoRequirement:
 class SolverDiagnostics:
     status: SolverRunStatus
     wall_time_ms: int
-    objective_value: int | None
-    best_bound: int | None
+    objective_value: Decimal | None
+    best_bound: Decimal | None
     model_fingerprint: str
     profile_name: str
     weights: Mapping[str, Decimal]
@@ -69,14 +80,7 @@ class SolveRequest:
 
     @property
     def resolved_as_of(self) -> datetime:
-        if self.as_of is not None:
-            return self.as_of
-        timestamps = [item.last_updated for item in self.snapshot.readiness_items]
-        known = [value for value in timestamps if value is not None]
-        if known:
-            latest = max(known)
-            return latest if latest.tzinfo is not None else latest.replace(tzinfo=UTC)
-        return datetime(1970, 1, 1, tzinfo=UTC)
+        return self.as_of if self.as_of is not None else scenario_as_of(self.snapshot)
 
     @property
     def profile(self):

@@ -219,11 +219,13 @@ class GoogleGenAIStructuredClient:
         max_output_tokens: int,
         response_schema: Mapping[str, Any],
     ) -> Any:
+        # response_json_schema accepts full JSON Schema; the legacy response_schema
+        # field rejects the additionalProperties that Pydantic emits for strict models.
         config = self._types.GenerateContentConfig(
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             response_mime_type="application/json",
-            response_schema=dict(response_schema),
+            response_json_schema=dict(response_schema),
         )
         response = await self._client.aio.models.generate_content(
             model=model_name,

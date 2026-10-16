@@ -23,7 +23,7 @@ Synthetic extraction remains the default. To opt in explicitly for a local or pr
 
 ```text
 RIPPLE_MODEL_PROVIDER=gemini_developer
-RIPPLE_INTAKE_MODEL=gemini-2.5-flash
+RIPPLE_INTAKE_MODEL=gemini-3.8-flash
 RIPPLE_GEMINI_API_KEY=replace-with-secret-value
 ```
 

@@ -56,7 +56,7 @@ INSERT INTO readiness_items (
 )
 VALUES
     ('A-12-function-test', 'A-12-base', 'A-12', 'function_test', 1, 1, 4, 4, 4, 0.90,
-        'pending', 'vendor_email', 'vendor email 9 Oct', TIMESTAMPTZ '2026-10-13 00:00:00+00', NULL, 0, 1),
+        'pending', 'vendor_email', 'vendor email 9 Oct', TIMESTAMPTZ '2026-10-13 00:00:00+00', 1, 0, 1),
     ('A-12-paperwork', 'A-12-base', 'A-12', 'paperwork', 2, 1, 5, 5, 5, 0.90,
         'pending', 'vendor_email', 'vendor email 9 Oct', TIMESTAMPTZ '2026-10-13 00:00:00+00', NULL, 0, 1),
     ('A-12-shorebase', 'A-12-base', 'A-12', 'shorebase_staging', 3, 1, 6, 6, 6, 0.90,
